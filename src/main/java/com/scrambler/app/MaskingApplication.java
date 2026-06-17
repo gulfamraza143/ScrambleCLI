@@ -1,9 +1,12 @@
 package com.scrambler.app;
 
 import com.scrambler.archive.ZipExtractor;
+import com.scrambler.classify.ClassificationResult;
+import com.scrambler.classify.FileClassifier;
 import com.scrambler.config.ScramblerConfig;
 import com.scrambler.exception.ArchiveException;
 import com.scrambler.exception.FileProcessingException;
+import com.scrambler.inventory.FileInfo;
 import com.scrambler.inventory.FileIterator;
 import com.scrambler.inventory.RepositoryInventory;
 import com.scrambler.workspace.Workspace;
@@ -22,9 +25,12 @@ public final class MaskingApplication {
     static final int EXIT_INVALID_USAGE = 1;
     static final int EXIT_PROCESSING_FAILURE = 2;
 
+    private static final int CATEGORY_DISPLAY_WIDTH = 10;
+
     private final WorkspaceManager workspaceManager;
     private final ZipExtractor zipExtractor;
     private final FileIterator fileIterator;
+    private final FileClassifier fileClassifier;
     private final ScramblerConfig config;
 
     /**
@@ -44,6 +50,7 @@ public final class MaskingApplication {
         this.workspaceManager = new WorkspaceManager();
         this.zipExtractor = new ZipExtractor(workspaceManager, config);
         this.fileIterator = new FileIterator(workspaceManager);
+        this.fileClassifier = new FileClassifier();
     }
 
     /**
@@ -75,7 +82,7 @@ public final class MaskingApplication {
             workspace = workspaceManager.createWorkspace(config);
             Path extractionRoot = zipExtractor.extract(zipPath, workspace);
             RepositoryInventory inventory = new RepositoryInventory(fileIterator.collectFiles(extractionRoot));
-            printInventory(inventory);
+            printInventory(inventory, fileClassifier);
             return EXIT_SUCCESS;
         } catch (ArchiveException | FileProcessingException e) {
             return reportProcessingFailure(e);
@@ -99,12 +106,14 @@ public final class MaskingApplication {
         System.err.println("Usage: java -jar scramble-mask.jar <repo.zip>");
     }
 
-    private static void printInventory(RepositoryInventory inventory) {
+    private static void printInventory(RepositoryInventory inventory, FileClassifier fileClassifier) {
         System.out.println("===== INVENTORY =====");
         System.out.println();
 
-        for (String repoRelativePath : inventory.getRepoRelativePaths()) {
-            System.out.println(repoRelativePath);
+        for (FileInfo fileInfo : inventory.getFiles()) {
+            ClassificationResult result = fileClassifier.classify(fileInfo);
+            String categoryLabel = String.format("%-" + CATEGORY_DISPLAY_WIDTH + "s", result.getCategory().name());
+            System.out.println(categoryLabel + result.getFileInfo().getRepoRelativePath());
         }
 
         System.out.println();
