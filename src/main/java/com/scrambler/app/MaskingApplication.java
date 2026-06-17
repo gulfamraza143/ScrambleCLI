@@ -8,10 +8,12 @@ import com.scrambler.config.ScramblerConfig;
 import com.scrambler.detection.DetectionContext;
 import com.scrambler.detection.DetectionEngine;
 import com.scrambler.detection.DetectionResult;
-import com.scrambler.detection.Entity;
 import com.scrambler.exception.ArchiveException;
 import com.scrambler.exception.FileProcessingException;
 import com.scrambler.file.TextFileReader;
+import com.scrambler.masking.MappingRecord;
+import com.scrambler.masking.MappingRegistry;
+import com.scrambler.masking.MaskingEngine;
 import com.scrambler.inventory.FileInfo;
 import com.scrambler.inventory.FileIterator;
 import com.scrambler.inventory.RepositoryInventory;
@@ -26,7 +28,7 @@ import java.util.List;
 
 /**
  * Entry point for the masking CLI.
- * Milestone 3 extends extraction and classification with text-file detection output.
+ * Milestone 4 extends detection with reversible token masking for text files.
  */
 public final class MaskingApplication {
 
@@ -41,6 +43,7 @@ public final class MaskingApplication {
     private final FileIterator fileIterator;
     private final FileClassifier fileClassifier;
     private final DetectionEngine detectionEngine;
+    private final MaskingEngine maskingEngine;
     private final TextFileReader textFileReader;
     private final ScramblerConfig config;
 
@@ -63,6 +66,7 @@ public final class MaskingApplication {
         this.fileIterator = new FileIterator(workspaceManager);
         this.fileClassifier = new FileClassifier();
         this.detectionEngine = new DetectionEngine();
+        this.maskingEngine = new MaskingEngine();
         this.textFileReader = new TextFileReader();
     }
 
@@ -95,8 +99,9 @@ public final class MaskingApplication {
             workspace = workspaceManager.createWorkspace(config);
             Path extractionRoot = zipExtractor.extract(zipPath, workspace);
             RepositoryInventory inventory = new RepositoryInventory(fileIterator.collectFiles(extractionRoot));
-            List<DetectionResult> findings = detectTextFiles(inventory);
-            printFindings(findings);
+            MappingRegistry mappingRegistry = new MappingRegistry();
+            List<MaskedFileResult> maskedFiles = maskTextFiles(inventory, mappingRegistry);
+            printMaskedResults(maskedFiles, mappingRegistry);
             return EXIT_SUCCESS;
         } catch (ArchiveException | FileProcessingException e) {
             return reportProcessingFailure(e);
@@ -107,8 +112,10 @@ public final class MaskingApplication {
         }
     }
 
-    private List<DetectionResult> detectTextFiles(RepositoryInventory inventory) throws FileProcessingException {
-        List<DetectionResult> findings = new ArrayList<>();
+    private List<MaskedFileResult> maskTextFiles(
+            RepositoryInventory inventory,
+            MappingRegistry mappingRegistry) throws FileProcessingException {
+        List<MaskedFileResult> maskedFiles = new ArrayList<>();
 
         for (FileInfo fileInfo : inventory.getFiles()) {
             ClassificationResult classification = fileClassifier.classify(fileInfo);
@@ -117,14 +124,15 @@ public final class MaskingApplication {
             }
 
             String content = textFileReader.readUtf8(fileInfo.getAbsolutePath());
-            DetectionResult result = detectionEngine.detect(new DetectionContext(fileInfo, content));
-            if (result.hasEntities()) {
-                findings.add(result);
+            DetectionResult detectionResult = detectionEngine.detect(new DetectionContext(fileInfo, content));
+            String maskedContent = maskingEngine.mask(content, detectionResult, mappingRegistry);
+            if (detectionResult.hasEntities()) {
+                maskedFiles.add(new MaskedFileResult(fileInfo.getRepoRelativePath(), maskedContent));
             }
         }
 
-        findings.sort(Comparator.comparing(result -> result.getFileInfo().getRepoRelativePath()));
-        return findings;
+        maskedFiles.sort(Comparator.comparing(MaskedFileResult::repoRelativePath));
+        return maskedFiles;
     }
 
     private static int reportProcessingFailure(Throwable failure) {
@@ -140,26 +148,37 @@ public final class MaskingApplication {
         System.err.println("Usage: java -jar scramble-mask.jar <repo.zip>");
     }
 
-    private static void printFindings(List<DetectionResult> findings) {
-        System.out.println("===== FINDINGS =====");
+    private static void printMaskedResults(List<MaskedFileResult> maskedFiles, MappingRegistry mappingRegistry) {
+        System.out.println("===== MASKED FILES =====");
         System.out.println();
 
-        for (DetectionResult result : findings) {
+        for (MaskedFileResult maskedFile : maskedFiles) {
             System.out.println("File:");
-            System.out.println(result.getFileInfo().getRepoRelativePath());
+            System.out.println(maskedFile.repoRelativePath());
             System.out.println();
-
-            for (Entity entity : result.getEntities()) {
-                String typeLabel = String.format("%-" + ENTITY_TYPE_DISPLAY_WIDTH + "s", entity.getType().name());
-                System.out.println(typeLabel + entity.getOriginalValue());
-            }
-
+            System.out.println(maskedFile.maskedContent());
             System.out.println();
         }
 
-        if (findings.isEmpty()) {
+        if (maskedFiles.isEmpty()) {
             System.out.println("No sensitive entities detected.");
             System.out.println();
         }
+
+        System.out.println("===== MAPPINGS =====");
+        System.out.println();
+
+        for (MappingRecord record : mappingRegistry.getRecords()) {
+            String typeLabel = String.format("%-" + ENTITY_TYPE_DISPLAY_WIDTH + "s", record.getEntityType().name());
+            System.out.println(record.getRepoRelativePath() + " | " + typeLabel + record.getMaskedValue());
+        }
+
+        if (mappingRegistry.getRecords().isEmpty()) {
+            System.out.println("No mappings recorded.");
+            System.out.println();
+        }
+    }
+
+    private record MaskedFileResult(String repoRelativePath, String maskedContent) {
     }
 }
