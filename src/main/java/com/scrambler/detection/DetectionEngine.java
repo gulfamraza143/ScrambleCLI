@@ -27,6 +27,18 @@ public final class DetectionEngine {
             "https?://[^\\s<>\"']+");
     private static final Pattern IP_ADDRESS_PATTERN = Pattern.compile(
             "\\b(?:(?:25[0-5]|2[0-4]\\d|[01]?\\d\\d?)\\.){3}(?:25[0-5]|2[0-4]\\d|[01]?\\d\\d?)\\b");
+    private static final Pattern PASSWORD_ASSIGNMENT_PATTERN = Pattern.compile(
+            "(?im)^[ \\t]*(?:[\\w.-]+\\.)*password\\s*[:=]\\s*['\"]?[^\\s#'\"]{4,}['\"]?");
+    private static final Pattern API_KEY_ASSIGNMENT_PATTERN = Pattern.compile(
+            "(?im)^[ \\t]*(?:[\\w.-]+\\.)*api[._-]key\\s*[:=]\\s*['\"]?[^\\s#'\"]{4,}['\"]?");
+    private static final Pattern SECRET_KEY_ASSIGNMENT_PATTERN = Pattern.compile(
+            "(?im)^[ \\t]*(?:[\\w.-]+\\.)*secret\\s*[:=]\\s*['\"]?[^\\s#'\"]{3,}['\"]?");
+    private static final Pattern JWT_PATTERN = Pattern.compile(
+            "\\beyJ[A-Za-z0-9_-]{10,}\\.[A-Za-z0-9_-]{10,}\\.[A-Za-z0-9_-]{10,}\\b");
+    private static final Pattern PRIVATE_KEY_BLOCK_PATTERN = Pattern.compile(
+            "-----BEGIN (?:RSA |OPENSSH )?PRIVATE KEY-----[\\s\\S]*?-----END (?:RSA |OPENSSH )?PRIVATE KEY-----");
+    private static final Pattern DATABASE_URL_PATTERN = Pattern.compile(
+            "\\bjdbc:(?:postgresql|mysql)://[^\\s'\"]+|\\bjdbc:oracle(?::[\\w]+)?:(?:@//|//|@)[^\\s'\"]+");
 
     private final List<DetectionRule> rules;
     private final Map<EntityType, Integer> priorities;
@@ -97,10 +109,22 @@ public final class DetectionEngine {
                 100));
 
         catalog.add(new DetectionRule(
+                EntityType.PRIVATE_KEY,
+                EntityDomain.SECRETS,
+                PRIVATE_KEY_BLOCK_PATTERN,
+                96));
+
+        catalog.add(new DetectionRule(
                 EntityType.IFSC,
                 EntityDomain.SPII,
                 IFSC_PATTERN,
                 90));
+
+        catalog.add(new DetectionRule(
+                EntityType.JWT,
+                EntityDomain.SECRETS,
+                JWT_PATTERN,
+                86));
 
         catalog.add(new DetectionRule(
                 EntityType.EMAIL,
@@ -127,13 +151,36 @@ public final class DetectionEngine {
                 50));
 
         catalog.add(new DetectionRule(
+                EntityType.DATABASE_URL,
+                EntityDomain.INFRASTRUCTURE,
+                DATABASE_URL_PATTERN,
+                45));
+
+        catalog.add(new DetectionRule(
                 EntityType.IP_ADDRESS,
                 EntityDomain.INFRASTRUCTURE,
                 IP_ADDRESS_PATTERN,
                 40));
 
-        // Placeholders for future rules: AADHAAR, UPI_ID, CREDIT_CARD, PASSWORD,
-        // API_KEY, SECRET_KEY, JWT, PRIVATE_KEY, DATABASE_URL.
+        catalog.add(new DetectionRule(
+                EntityType.PASSWORD,
+                EntityDomain.SECRETS,
+                PASSWORD_ASSIGNMENT_PATTERN,
+                30));
+
+        catalog.add(new DetectionRule(
+                EntityType.API_KEY,
+                EntityDomain.SECRETS,
+                API_KEY_ASSIGNMENT_PATTERN,
+                29));
+
+        catalog.add(new DetectionRule(
+                EntityType.SECRET_KEY,
+                EntityDomain.SECRETS,
+                SECRET_KEY_ASSIGNMENT_PATTERN,
+                28));
+
+        // Placeholders for future rules: AADHAAR, UPI_ID, CREDIT_CARD.
 
         return List.copyOf(catalog);
     }
