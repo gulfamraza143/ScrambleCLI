@@ -1,5 +1,10 @@
 package com.scrambler.config;
 
+import java.io.BufferedReader;
+import java.io.IOException;
+import java.io.InputStream;
+import java.io.InputStreamReader;
+import java.nio.charset.StandardCharsets;
 import java.util.List;
 import java.util.regex.Pattern;
 
@@ -8,14 +13,7 @@ import java.util.regex.Pattern;
  */
 public final class CompanyDictionary {
 
-    private static final List<String> DEFAULT_TERMS = List.of(
-            "ICICI",
-            "ICICIBANK",
-            "ICICILABS",
-            "FXTP",
-            "WECARE",
-            "SCRAMBLE"
-    );
+    private static final String DEFAULT_RESOURCE = "/company-dictionary.txt";
 
     private final List<String> terms;
 
@@ -24,12 +22,36 @@ public final class CompanyDictionary {
     }
 
     /**
-     * Returns the default company dictionary.
+     * Returns the default company dictionary loaded from the bundled resource file.
      *
      * @return default dictionary
      */
     public static CompanyDictionary defaults() {
-        return new CompanyDictionary(DEFAULT_TERMS);
+        return loadFromResource(DEFAULT_RESOURCE);
+    }
+
+    /**
+     * Loads a company dictionary from a classpath resource.
+     *
+     * @param resourcePath classpath resource path
+     * @return loaded dictionary
+     */
+    public static CompanyDictionary loadFromResource(String resourcePath) {
+        try (InputStream inputStream = CompanyDictionary.class.getResourceAsStream(resourcePath)) {
+            if (inputStream == null) {
+                throw new IllegalStateException("Company dictionary resource not found: " + resourcePath);
+            }
+            try (BufferedReader reader = new BufferedReader(
+                    new InputStreamReader(inputStream, StandardCharsets.UTF_8))) {
+                List<String> terms = reader.lines()
+                        .map(String::trim)
+                        .filter(line -> !line.isEmpty() && !line.startsWith("#"))
+                        .toList();
+                return new CompanyDictionary(terms);
+            }
+        } catch (IOException e) {
+            throw new IllegalStateException("Failed to load company dictionary: " + resourcePath, e);
+        }
     }
 
     /**

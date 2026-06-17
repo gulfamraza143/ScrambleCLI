@@ -1,0 +1,29 @@
+ICICI Bank Loan Platform — Architecture Overview
+================================================
+
+System owned by ICICIBANK Technology Division (ICICILABS).
+Integration with FXTP payment switch and WECARE customer portal.
+Data masking powered by SCRAMBLE pipeline.
+
+Components:
+  - API Gateway: https://internal.icici.com/loan-api/v1
+  - Auth Service: https://auth.icici.internal
+  - Database: jdbc:postgresql://db.icici.internal:5432/loan
+  - Cache: redis://10.20.30.41:6379
+  - Message Bus: kafka1.icici.internal:9092
+
+Network:
+  - Internal LB: 192.168.1.10
+  - App servers: 10.20.30.40, 10.20.30.41
+  - DR site: http://10.20.30.50
+
+Collision test documentation:
+  EMAIL_000010 through EMAIL_000020 are synthetic placeholders.
+  PASSWORD_000010 through PASSWORD_000020 are synthetic placeholders.
+
+Sample credentials (test only):
+  password=admin123
+  api.key=abcdef1234567890SCRAMBLETEST
+  jwt.token=eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJ1c2VyIjoiaWNpY2kIiwicm9sZSI6ImFkbWluIn0.SIGNATURETOKEN1234567890ABCDEF
+
+Brand variants: ICICI, Icici, iCiCi, ICICIBANK, ICICILABS

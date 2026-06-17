@@ -12,6 +12,8 @@ public enum EntityType {
     IFSC(EntityDomain.SPII),
     UPI_ID(EntityDomain.SPII),
     CREDIT_CARD(EntityDomain.SPII),
+    GSTIN(EntityDomain.SPII),
+    TAN(EntityDomain.SPII),
 
     PASSWORD(EntityDomain.SECRETS),
     API_KEY(EntityDomain.SECRETS),
@@ -23,7 +25,8 @@ public enum EntityType {
     IP_ADDRESS(EntityDomain.INFRASTRUCTURE),
     DATABASE_URL(EntityDomain.INFRASTRUCTURE),
 
-    COMPANY_BRAND(EntityDomain.COMPANY);
+    COMPANY_BRAND(EntityDomain.COMPANY),
+    CIN(EntityDomain.COMPANY);
 
     private final EntityDomain domain;
 

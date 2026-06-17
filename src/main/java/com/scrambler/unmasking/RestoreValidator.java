@@ -53,8 +53,8 @@ public final class RestoreValidator {
         if (record.getEntityType() == null) {
             throw new ReportException("Corrupt entity report row: entity_type is missing");
         }
-        if (record.getOriginalValue() == null) {
-            throw new ReportException("Corrupt entity report row: original_value is null");
+        if (record.getOriginalValue() == null || record.getOriginalValue().isBlank()) {
+            throw new ReportException("Corrupt entity report row: original_value is missing");
         }
         if (record.getMaskedValue() == null || record.getMaskedValue().isBlank()) {
             throw new ReportException("Corrupt entity report row: masked_value is missing");

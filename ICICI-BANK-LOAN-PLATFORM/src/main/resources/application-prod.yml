@@ -1,0 +1,19 @@
+spring:
+  profiles: prod
+  datasource:
+    url: jdbc:oracle:thin:@//oracle.icici.internal:1521/prod
+    password: secret123
+
+prod:
+  portal: https://internal.icici.com
+  backup_host: 192.168.10.50
+  replica: jdbc:postgresql://replica.icici.internal:5432/loan_ro
+  support: duplicate.test@icici.com
+  ifsc_default: ICIC0001234
+  pan_sample: ABCDE1234F
+  jwt: eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJ1c2VyIjoiaWNpY2k4Iiwicm9sZSI6ImFkbWluIn0.SIGNATURE4TOKEN1234567890ABCDEF
+  secret.key: prod-bank-secret-key-001
+
+icici:
+  brand: iCiCi
+  division: ICICIBANK

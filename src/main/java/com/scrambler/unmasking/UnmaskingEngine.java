@@ -1,31 +1,21 @@
 package com.scrambler.unmasking;
 
-import com.scrambler.detection.EntityType;
 import com.scrambler.exception.MaskingException;
+import com.scrambler.exception.ReportException;
 import com.scrambler.masking.EntityReplacer;
+import com.scrambler.masking.TokenFormatSpec;
 
 import java.util.ArrayList;
-import java.util.Arrays;
 import java.util.Comparator;
 import java.util.List;
 import java.util.Objects;
 import java.util.regex.Matcher;
 import java.util.regex.Pattern;
-import java.util.stream.Collectors;
 
 /**
  * Restores masked text content using a pre-built mapping index.
  */
 public final class UnmaskingEngine {
-
-    private static final Pattern MASKED_TOKEN_PATTERN = buildMaskedTokenPattern();
-
-    private static Pattern buildMaskedTokenPattern() {
-        String entityTypes = Arrays.stream(EntityType.values())
-                .map(EntityType::name)
-                .collect(Collectors.joining("|"));
-        return Pattern.compile("(?:" + entityTypes + ")_\\d{6}");
-    }
 
     private final EntityReplacer entityReplacer;
 
@@ -58,9 +48,13 @@ public final class UnmaskingEngine {
         Objects.requireNonNull(maskedContent, "maskedContent must not be null");
         Objects.requireNonNull(mappingIndex, "mappingIndex must not be null");
 
-        detectMissingMappings(maskedContent, mappingIndex);
+        Pattern tokenPattern = resolveTokenPattern(mappingIndex);
+        detectMissingMappings(maskedContent, mappingIndex, tokenPattern);
 
-        List<EntityReplacer.Replacement> replacements = collectReplacements(maskedContent, mappingIndex);
+        List<EntityReplacer.Replacement> replacements = collectReplacements(
+                maskedContent,
+                mappingIndex,
+                tokenPattern);
         if (replacements.isEmpty()) {
             return maskedContent;
         }
@@ -72,8 +66,37 @@ public final class UnmaskingEngine {
         return restored;
     }
 
-    private static void detectMissingMappings(String maskedContent, MappingIndex mappingIndex) {
-        Matcher matcher = MASKED_TOKEN_PATTERN.matcher(maskedContent);
+    private static Pattern resolveTokenPattern(MappingIndex mappingIndex) {
+        boolean hasCurrent = false;
+        boolean hasLegacy = false;
+
+        for (String maskedValue : mappingIndex.getMaskedValues()) {
+            if (TokenFormatSpec.isCurrentFormat(maskedValue)) {
+                hasCurrent = true;
+            } else if (TokenFormatSpec.isLegacyFormat(maskedValue)) {
+                hasLegacy = true;
+            } else {
+                throw new ReportException("Unrecognized masked token format: " + maskedValue);
+            }
+        }
+
+        if (hasCurrent && hasLegacy) {
+            throw new ReportException("Mixed legacy and current masked token formats in entity report");
+        }
+        if (hasCurrent) {
+            return TokenFormatSpec.currentFormatPattern();
+        }
+        if (hasLegacy) {
+            return TokenFormatSpec.legacyFormatPattern();
+        }
+        return TokenFormatSpec.currentFormatPattern();
+    }
+
+    private static void detectMissingMappings(
+            String maskedContent,
+            MappingIndex mappingIndex,
+            Pattern tokenPattern) {
+        Matcher matcher = tokenPattern.matcher(maskedContent);
         while (matcher.find()) {
             String token = matcher.group();
             if (!mappingIndex.containsMaskedValue(token)) {
@@ -84,27 +107,20 @@ public final class UnmaskingEngine {
 
     private static List<EntityReplacer.Replacement> collectReplacements(
             String maskedContent,
-            MappingIndex mappingIndex) {
+            MappingIndex mappingIndex,
+            Pattern tokenPattern) {
         List<EntityReplacer.Replacement> replacements = new ArrayList<>();
 
-        for (String maskedValue : mappingIndex.getMaskedValues()) {
-            if (!maskedContent.contains(maskedValue)) {
+        Matcher matcher = tokenPattern.matcher(maskedContent);
+        while (matcher.find()) {
+            String token = matcher.group();
+            if (!mappingIndex.containsMaskedValue(token)) {
                 continue;
             }
-
-            String originalValue = mappingIndex.getOriginalValue(maskedValue);
-            int fromIndex = 0;
-            while (true) {
-                int startOffset = maskedContent.indexOf(maskedValue, fromIndex);
-                if (startOffset < 0) {
-                    break;
-                }
-                replacements.add(new EntityReplacer.Replacement(
-                        startOffset,
-                        startOffset + maskedValue.length(),
-                        originalValue));
-                fromIndex = startOffset + maskedValue.length();
-            }
+            replacements.add(new EntityReplacer.Replacement(
+                    matcher.start(),
+                    matcher.end(),
+                    mappingIndex.getOriginalValue(token)));
         }
 
         replacements.sort(Comparator.comparingInt(EntityReplacer.Replacement::startOffset).reversed());

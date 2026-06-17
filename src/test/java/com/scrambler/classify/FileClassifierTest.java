@@ -27,16 +27,38 @@ class FileClassifierTest {
     @ParameterizedTest
     @CsvSource({
             "src/App.java, TEXT",
+            "src/Main.kt, TEXT",
+            "scripts/build.groovy, TEXT",
+            "lib/util.py, TEXT",
+            "web/app.js, TEXT",
+            "web/component.jsx, TEXT",
+            "web/app.ts, TEXT",
+            "web/component.tsx, TEXT",
+            "sql/schema.sql, TEXT",
+            "config/settings.json, TEXT",
+            "config/logback.xml, TEXT",
             "config/application.yml, TEXT",
             "config/application.YAML, TEXT",
-            "README.md, TEXT",
+            "config/db.properties, TEXT",
             "secrets/.env, TEXT",
-            "certs/server.PEM, TEXT",
-            "data/unknown, TEXT",
-            "Makefile, TEXT",
-            "archive/file., TEXT"
+            "config/app.conf, TEXT",
+            "config/server.cfg, TEXT",
+            "notes/readme.txt, TEXT",
+            "scripts/deploy.sh, TEXT",
+            "scripts/deploy.bash, TEXT",
+            "scripts/run.bat, TEXT",
+            "scripts/run.ps1, TEXT",
+            "public/index.html, TEXT",
+            "public/styles.css, TEXT",
+            "views/page.jsp, TEXT",
+            "certs/server.pem, TEXT",
+            "certs/private.key, TEXT",
+            "certs/root.crt, TEXT",
+            "certs/keystore.p12, TEXT",
+            "data/customers.csv, TEXT",
+            "logs/application.log, TEXT"
     })
-    void classifiesTextFiles(String repoRelativePath, FileCategory expectedCategory) {
+    void classifiesApprovedTextExtensions(String repoRelativePath, FileCategory expectedCategory) {
         ClassificationResult result = fileClassifier.classify(fileInfo(repoRelativePath));
 
         assertEquals(expectedCategory, result.getCategory());
@@ -45,9 +67,31 @@ class FileClassifierTest {
 
     @ParameterizedTest
     @CsvSource({
+            "README.md, SKIP",
+            "docs/ARCHITECTURE.md, SKIP",
+            "data/unknown, SKIP",
+            "Makefile, SKIP",
+            "Dockerfile, SKIP",
+            "archive/file., SKIP",
+            "random/file.xyz, SKIP",
+            "legacy/module.go, SKIP",
+            "native/app.exe, SKIP"
+    })
+    void classifiesUnknownOrSkippedPaths(String repoRelativePath, FileCategory expectedCategory) {
+        ClassificationResult result = fileClassifier.classify(fileInfo(repoRelativePath));
+
+        assertEquals(expectedCategory, result.getCategory());
+    }
+
+    @ParameterizedTest
+    @CsvSource({
             "report.pdf, DOCUMENT",
             "docs/guide.DOCX, DOCUMENT",
-            "finance/budget.xlsx, DOCUMENT"
+            "finance/budget.xlsx, DOCUMENT",
+            "slides/deck.pptx, DOCUMENT",
+            "docs/manual.odt, DOCUMENT",
+            "finance/data.ods, DOCUMENT",
+            "slides/show.odp, DOCUMENT"
     })
     void classifiesDocumentFiles(String repoRelativePath, FileCategory expectedCategory) {
         ClassificationResult result = fileClassifier.classify(fileInfo(repoRelativePath));
@@ -59,7 +103,10 @@ class FileClassifierTest {
     @CsvSource({
             "logo.png, IMAGE",
             "assets/photo.JPEG, IMAGE",
-            "icons/favicon.webp, IMAGE"
+            "icons/favicon.webp, IMAGE",
+            "assets/icon.svg, IMAGE",
+            "assets/photo.gif, IMAGE",
+            "assets/photo.bmp, IMAGE"
     })
     void classifiesImageFiles(String repoRelativePath, FileCategory expectedCategory) {
         ClassificationResult result = fileClassifier.classify(fileInfo(repoRelativePath));
@@ -71,9 +118,17 @@ class FileClassifierTest {
     @CsvSource({
             "app.jar, SKIP",
             "lib/service.war, SKIP",
+            "lib/service.ear, SKIP",
             "build/App.CLASS, SKIP",
             "dist/archive.tar.gz, SKIP",
-            "backup/data.7z, SKIP"
+            "backup/data.7z, SKIP",
+            "backup/data.rar, SKIP",
+            "nested/path/archive.zip, SKIP",
+            "runtime/app.dat, SKIP",
+            "native/lib.so, SKIP",
+            "native/lib.dylib, SKIP",
+            "native/app.dll, SKIP",
+            "native/app.bin, SKIP"
     })
     void classifiesSkipFiles(String repoRelativePath, FileCategory expectedCategory) {
         ClassificationResult result = fileClassifier.classify(fileInfo(repoRelativePath));

@@ -79,6 +79,6 @@ public final class MaskingEngine {
 
     private String nextToken(EntityType entityType) {
         int sequence = tokenCounters.merge(entityType, 1, Integer::sum);
-        return entityType.name() + "_" + String.format("%06d", sequence);
+        return TokenFormatSpec.format(entityType, sequence);
     }
 }

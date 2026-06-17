@@ -28,17 +28,29 @@ public final class DetectionEngine {
     private static final Pattern IP_ADDRESS_PATTERN = Pattern.compile(
             "\\b(?:(?:25[0-5]|2[0-4]\\d|[01]?\\d\\d?)\\.){3}(?:25[0-5]|2[0-4]\\d|[01]?\\d\\d?)\\b");
     private static final Pattern PASSWORD_ASSIGNMENT_PATTERN = Pattern.compile(
-            "(?im)^[ \\t]*(?:[\\w.-]+\\.)*password\\s*[:=]\\s*['\"]?[^\\s#'\"]{4,}['\"]?");
+            "(?im)(?:^[ \\t]*(?:[\\w.-]+\\.)*password\\s*[:=]\\s*['\"]?|[\"']password[\"']\\s*:\\s*[\"'])([^\\s#\"']{4,})");
     private static final Pattern API_KEY_ASSIGNMENT_PATTERN = Pattern.compile(
-            "(?im)^[ \\t]*(?:[\\w.-]+\\.)*api[._-]key\\s*[:=]\\s*['\"]?[^\\s#'\"]{4,}['\"]?");
+            "(?im)(?:^[ \\t]*(?:[\\w.-]+\\.)*api[._-]key\\s*[:=]\\s*['\"]?|[\"']api[._-]key[\"']\\s*:\\s*[\"'])([^\\s#\"']{4,})");
     private static final Pattern SECRET_KEY_ASSIGNMENT_PATTERN = Pattern.compile(
-            "(?im)^[ \\t]*(?:[\\w.-]+\\.)*secret\\s*[:=]\\s*['\"]?[^\\s#'\"]{3,}['\"]?");
+            "(?im)(?:^[ \\t]*(?:[\\w.-]+\\.)*secret\\s*[:=]\\s*['\"]?|[\"']secret[\"']\\s*:\\s*[\"'])([^\\s#\"']{3,})");
     private static final Pattern JWT_PATTERN = Pattern.compile(
             "\\beyJ[A-Za-z0-9_-]{10,}\\.[A-Za-z0-9_-]{10,}\\.[A-Za-z0-9_-]{10,}\\b");
     private static final Pattern PRIVATE_KEY_BLOCK_PATTERN = Pattern.compile(
             "-----BEGIN (?:RSA |OPENSSH )?PRIVATE KEY-----[\\s\\S]*?-----END (?:RSA |OPENSSH )?PRIVATE KEY-----");
     private static final Pattern DATABASE_URL_PATTERN = Pattern.compile(
             "\\bjdbc:(?:postgresql|mysql)://[^\\s'\"]+|\\bjdbc:oracle(?::[\\w]+)?:(?:@//|//|@)[^\\s'\"]+");
+    private static final Pattern AADHAAR_PATTERN = Pattern.compile(
+            "\\b\\d{4}[\\s-]?\\d{4}[\\s-]?\\d{4}(?![\\s-]?\\d)\\b");
+    private static final Pattern UPI_ID_PATTERN = Pattern.compile(
+            "(?i)\\b[a-z0-9._-]{1,256}@(?:ok[a-z]{2,}|ybl|paytm|axl|ibl|upi)\\b");
+    private static final Pattern CREDIT_CARD_PATTERN = Pattern.compile(
+            "\\b(?:\\d{4}[\\s-]?){3}\\d{4}\\b|\\b\\d{13,19}\\b");
+    private static final Pattern GSTIN_PATTERN = Pattern.compile(
+            "\\b\\d{2}[A-Z]{5}\\d{4}[A-Z][1-9A-Z]Z[0-9A-Z]\\b", Pattern.CASE_INSENSITIVE);
+    private static final Pattern TAN_PATTERN = Pattern.compile(
+            "\\b[A-Z]{4}\\d{5}[A-Z]\\b", Pattern.CASE_INSENSITIVE);
+    private static final Pattern CIN_PATTERN = Pattern.compile(
+            "\\b[UL]\\d{5}[A-Z]{2}\\d{4}[A-Z]{3}\\d{6}\\b", Pattern.CASE_INSENSITIVE);
 
     private final List<DetectionRule> rules;
     private final Map<EntityType, Integer> priorities;
@@ -71,24 +83,54 @@ public final class DetectionEngine {
             throw new NullPointerException("context must not be null");
         }
 
-        List<Entity> candidates = new ArrayList<>();
+        List<ResolvedMatch> candidates = new ArrayList<>();
         String content = context.getContent();
 
         for (DetectionRule rule : rules) {
             Matcher matcher = rule.getPattern().matcher(content);
             while (matcher.find()) {
-                candidates.add(new Entity(
-                        rule.getEntityDomain(),
-                        rule.getEntityType(),
-                        matcher.group(),
-                        matcher.start(),
-                        matcher.end()));
+                ResolvedMatch candidate = toResolvedMatch(rule, matcher);
+                if (acceptsCandidate(rule, candidate)) {
+                    candidates.add(candidate);
+                }
             }
         }
 
-        List<Entity> resolved = resolveOverlaps(candidates, priorities);
-        resolved.sort(Comparator.comparingInt(Entity::getStartOffset));
-        return new DetectionResult(context.getFileInfo(), resolved);
+        List<ResolvedMatch> resolved = resolveOverlaps(candidates, priorities);
+        List<Entity> entities = resolved.stream()
+                .map(ResolvedMatch::entity)
+                .sorted(Comparator.comparingInt(Entity::getStartOffset))
+                .toList();
+        return new DetectionResult(context.getFileInfo(), entities);
+    }
+
+    private static ResolvedMatch toResolvedMatch(DetectionRule rule, Matcher matcher) {
+        int overlapStart = matcher.start();
+        int overlapEnd = matcher.end();
+
+        String originalValue;
+        int startOffset;
+        int endOffset;
+        if (rule.getValueGroupIndex() > 0) {
+            originalValue = matcher.group(rule.getValueGroupIndex());
+            startOffset = matcher.start(rule.getValueGroupIndex());
+            endOffset = matcher.end(rule.getValueGroupIndex());
+        } else {
+            originalValue = matcher.group();
+            startOffset = overlapStart;
+            endOffset = overlapEnd;
+        }
+
+        Entity entity = new Entity(
+                rule.getEntityDomain(),
+                rule.getEntityType(),
+                originalValue,
+                startOffset,
+                endOffset);
+        return new ResolvedMatch(entity, overlapStart, overlapEnd);
+    }
+
+    private record ResolvedMatch(Entity entity, int overlapStart, int overlapEnd) {
     }
 
     private static Map<EntityType, Integer> indexPriorities(List<DetectionRule> rules) {
@@ -121,6 +163,28 @@ public final class DetectionEngine {
                 90));
 
         catalog.add(new DetectionRule(
+                EntityType.GSTIN,
+                EntityDomain.SPII,
+                GSTIN_PATTERN,
+                91,
+                0,
+                DetectionValidators::isValidGstin));
+
+        catalog.add(new DetectionRule(
+                EntityType.UPI_ID,
+                EntityDomain.SPII,
+                UPI_ID_PATTERN,
+                88));
+
+        catalog.add(new DetectionRule(
+                EntityType.CREDIT_CARD,
+                EntityDomain.SPII,
+                CREDIT_CARD_PATTERN,
+                85,
+                0,
+                DetectionValidators::isValidCreditCard));
+
+        catalog.add(new DetectionRule(
                 EntityType.JWT,
                 EntityDomain.SECRETS,
                 JWT_PATTERN,
@@ -142,7 +206,33 @@ public final class DetectionEngine {
                 EntityType.PAN,
                 EntityDomain.PII,
                 PAN_PATTERN,
-                60));
+                60,
+                0,
+                DetectionValidators::isValidPan));
+
+        catalog.add(new DetectionRule(
+                EntityType.TAN,
+                EntityDomain.SPII,
+                TAN_PATTERN,
+                58,
+                0,
+                DetectionValidators::isValidTan));
+
+        catalog.add(new DetectionRule(
+                EntityType.CIN,
+                EntityDomain.COMPANY,
+                CIN_PATTERN,
+                94,
+                0,
+                DetectionValidators::isValidCin));
+
+        catalog.add(new DetectionRule(
+                EntityType.AADHAAR,
+                EntityDomain.PII,
+                AADHAAR_PATTERN,
+                75,
+                0,
+                DetectionValidators::isValidAadhaar));
 
         catalog.add(new DetectionRule(
                 EntityType.URL,
@@ -166,34 +256,40 @@ public final class DetectionEngine {
                 EntityType.PASSWORD,
                 EntityDomain.SECRETS,
                 PASSWORD_ASSIGNMENT_PATTERN,
-                30));
+                30,
+                1));
 
         catalog.add(new DetectionRule(
                 EntityType.API_KEY,
                 EntityDomain.SECRETS,
                 API_KEY_ASSIGNMENT_PATTERN,
-                29));
+                29,
+                1));
 
         catalog.add(new DetectionRule(
                 EntityType.SECRET_KEY,
                 EntityDomain.SECRETS,
                 SECRET_KEY_ASSIGNMENT_PATTERN,
-                28));
-
-        // Placeholders for future rules: AADHAAR, UPI_ID, CREDIT_CARD.
+                28,
+                1));
 
         return List.copyOf(catalog);
     }
 
-    private static List<Entity> resolveOverlaps(List<Entity> candidates, Map<EntityType, Integer> priorities) {
-        List<Entity> sorted = new ArrayList<>(candidates);
-        sorted.sort(Comparator
-                .comparingInt((Entity entity) -> entity.getEndOffset() - entity.getStartOffset()).reversed()
-                .thenComparing(Comparator.comparingInt((Entity entity) -> priorities.getOrDefault(entity.getType(), 0)).reversed())
-                .thenComparingInt(Entity::getStartOffset));
+    private static boolean acceptsCandidate(DetectionRule rule, ResolvedMatch candidate) {
+        return rule.getValueValidator().test(candidate.entity().getOriginalValue());
+    }
 
-        List<Entity> accepted = new ArrayList<>();
-        for (Entity candidate : sorted) {
+    private static List<ResolvedMatch> resolveOverlaps(List<ResolvedMatch> candidates, Map<EntityType, Integer> priorities) {
+        List<ResolvedMatch> sorted = new ArrayList<>(candidates);
+        sorted.sort(Comparator
+                .comparingInt((ResolvedMatch match) -> match.overlapEnd() - match.overlapStart()).reversed()
+                .thenComparing(Comparator.comparingInt(
+                        (ResolvedMatch match) -> priorities.getOrDefault(match.entity().getType(), 0)).reversed())
+                .thenComparingInt(match -> match.overlapStart()));
+
+        List<ResolvedMatch> accepted = new ArrayList<>();
+        for (ResolvedMatch candidate : sorted) {
             if (!overlapsAny(candidate, accepted)) {
                 accepted.add(candidate);
             }
@@ -201,10 +297,10 @@ public final class DetectionEngine {
         return accepted;
     }
 
-    private static boolean overlapsAny(Entity candidate, List<Entity> accepted) {
-        for (Entity existing : accepted) {
-            if (candidate.getStartOffset() < existing.getEndOffset()
-                    && existing.getStartOffset() < candidate.getEndOffset()) {
+    private static boolean overlapsAny(ResolvedMatch candidate, List<ResolvedMatch> accepted) {
+        for (ResolvedMatch existing : accepted) {
+            if (candidate.overlapStart() < existing.overlapEnd()
+                    && existing.overlapStart() < candidate.overlapEnd()) {
                 return true;
             }
         }

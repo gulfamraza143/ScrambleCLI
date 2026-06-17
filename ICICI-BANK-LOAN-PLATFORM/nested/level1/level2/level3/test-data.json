@@ -1,0 +1,118 @@
+{
+  "bank": "ICICI",
+  "partners": [
+    "ICICIBANK",
+    "ICICILABS",
+    "FXTP",
+    "WECARE",
+    "SCRAMBLE"
+  ],
+  "customers": [
+    {
+      "email": "customer041@icicibank.com",
+      "phone": "+91-9876500040",
+      "pan": "ABCDE1234F",
+      "ifsc": "HDFC0100011"
+    },
+    {
+      "email": "customer042@customer.in",
+      "phone": "+91-9876500041",
+      "pan": "BCDEF1001G",
+      "ifsc": "SBIN0100012"
+    },
+    {
+      "email": "customer043@loans.icici.internal",
+      "phone": "+91-9876500042",
+      "pan": "CDEFG1002H",
+      "ifsc": "AXIS0100013"
+    },
+    {
+      "email": "customer044@gmail.com",
+      "phone": "+91-9876500043",
+      "pan": "DEFGH1003I",
+      "ifsc": "KKBK0100014"
+    },
+    {
+      "email": "customer045@icici.com",
+      "phone": "+91-9876500044",
+      "pan": "EFGHI1004J",
+      "ifsc": "ICIC0100015"
+    },
+    {
+      "email": "customer046@icicibank.com",
+      "phone": "+91-9876500045",
+      "pan": "FGHIJ1005K",
+      "ifsc": "ICIC0001234"
+    },
+    {
+      "email": "customer047@customer.in",
+      "phone": "+91-9876500046",
+      "pan": "GHIJK1006L",
+      "ifsc": "SBIN0100002"
+    },
+    {
+      "email": "customer048@loans.icici.internal",
+      "phone": "+91-9876500047",
+      "pan": "HIJKL1007M",
+      "ifsc": "AXIS0100003"
+    },
+    {
+      "email": "customer049@gmail.com",
+      "phone": "+91-9876500048",
+      "pan": "IJKLM1008N",
+      "ifsc": "KKBK0100004"
+    },
+    {
+      "email": "customer050@icici.com",
+      "phone": "+91-9876500049",
+      "pan": "JKLMN1009O",
+      "ifsc": "ICIC0100005"
+    }
+  ],
+  "duplicates": {
+    "email": "duplicate.test@icici.com",
+    "pan": "ABCDE1234F",
+    "ifsc": "ICIC0001234",
+    "url": "https://internal.icici.com/loan-api/v1",
+    "api_key": "abcdef1234567890SCRAMBLETEST",
+    "jwt": "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJ1c2VyIjoiaWNpY2kIiwicm9sZSI6ImFkbWluIn0.SIGNATURETOKEN1234567890ABCDEF"
+  },
+  "secrets": {
+    "password": "admin123",
+    "db_password": "root123",
+    "api_key": "abcdef1234567890SCRAMBLETEST"
+  },
+  "infra": {
+    "portal": "https://internal.icici.com/loan-api/v1",
+    "internal_ip": "10.20.30.40",
+    "jdbc": "jdbc:postgresql://db.icici.internal:5432/loan"
+  },
+  "edge_cases": {
+    "unicode": "\u0928\u092e\u0938\u094d\u0924\u0947 ICICI",
+    "comma_separated": "customer038@loans.icici.internal, customer039@gmail.com",
+    "quoted": "\"customer040@icici.com\"",
+    "multiline": "line1\\nline2\\t{EMAIL_DUP}"
+  },
+  "collision_markers": [
+    "EMAIL_000001",
+    "EMAIL_000002",
+    "EMAIL_000003",
+    "EMAIL_000004",
+    "EMAIL_000005",
+    "EMAIL_000006",
+    "EMAIL_000007",
+    "EMAIL_000008",
+    "EMAIL_000009",
+    "EMAIL_000010",
+    "EMAIL_000011",
+    "EMAIL_000012",
+    "EMAIL_000013",
+    "EMAIL_000014",
+    "EMAIL_000015",
+    "EMAIL_000016",
+    "EMAIL_000017",
+    "EMAIL_000018",
+    "EMAIL_000019",
+    "EMAIL_000020"
+  ]
+}

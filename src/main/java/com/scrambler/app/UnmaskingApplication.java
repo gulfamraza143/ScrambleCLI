@@ -16,6 +16,7 @@ import com.scrambler.inventory.FileInfo;
 import com.scrambler.inventory.FileIterator;
 import com.scrambler.inventory.RepositoryInventory;
 import com.scrambler.report.EntityReportRecord;
+import com.scrambler.report.ReportDigest;
 import com.scrambler.unmasking.MappingIndex;
 import com.scrambler.unmasking.MappingLoader;
 import com.scrambler.unmasking.RestoreResult;
@@ -24,6 +25,7 @@ import com.scrambler.unmasking.UnmaskingEngine;
 import com.scrambler.workspace.Workspace;
 import com.scrambler.workspace.WorkspaceManager;
 
+import java.nio.file.Files;
 import java.nio.file.Path;
 import java.nio.file.Paths;
 import java.util.List;
@@ -109,6 +111,7 @@ public final class UnmaskingApplication {
             workspace = workspaceManager.createWorkspace(config);
             Path extractionRoot = zipExtractor.extract(maskedZipPath, workspace);
             List<EntityReportRecord> records = mappingLoader.load(reportPath);
+            verifyReportDigest(reportPath);
             restoreValidator.validate(records);
             MappingIndex mappingIndex = MappingIndex.from(records);
             RestoreResult restoreResult = restoreTextFiles(
@@ -162,6 +165,13 @@ public final class UnmaskingApplication {
 
     private static void printUsage() {
         System.err.println("Usage: java -jar scramble-unmask.jar <masked_repo.zip> <entity_report.csv>");
+    }
+
+    private static void verifyReportDigest(Path reportPath) {
+        Path digestPath = reportPath.resolveSibling(ReportDigest.DIGEST_FILENAME);
+        if (Files.isRegularFile(digestPath)) {
+            ReportDigest.verify(reportPath, digestPath);
+        }
     }
 
     private static Path resolveOutputPath(Path maskedZipPath) {

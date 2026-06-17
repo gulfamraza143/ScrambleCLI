@@ -9,6 +9,7 @@ import com.scrambler.exception.ReportException;
 import com.scrambler.inventory.FileInfo;
 import com.scrambler.masking.MappingRegistry;
 import com.scrambler.masking.MaskingEngine;
+import com.scrambler.masking.TokenFormatSpec;
 import com.scrambler.report.CsvReportWriter;
 import com.scrambler.report.EntityReportRecord;
 import com.scrambler.report.ReportSchema;
@@ -40,13 +41,13 @@ class UnmaskingEngineTest {
     void setUp() {
         unmaskingEngine = new UnmaskingEngine();
         mappingIndex = MappingIndex.from(List.of(
-                record("config/application.yml", EntityType.EMAIL, "admin@icici.com", "EMAIL_000001", 9, 24),
-                record("config/application.yml", EntityType.URL, "https://internal.icici.com", "URL_000001", 40, 65)));
+                record("config/application.yml", EntityType.EMAIL, "admin@icici.com", "SCRAMBLE_EMAIL_000001", 9, 24),
+                record("config/application.yml", EntityType.URL, "https://internal.icici.com", "SCRAMBLE_URL_000001", 40, 65)));
     }
 
     @Test
     void restoresSingleToken() {
-        String masked = "contact: EMAIL_000001";
+        String masked = "contact: SCRAMBLE_EMAIL_000001";
 
         String restored = unmaskingEngine.unmask(masked, singleTokenIndex(), null);
 
@@ -56,8 +57,8 @@ class UnmaskingEngineTest {
     @Test
     void restoresMultipleTokens() {
         String masked = """
-                admin_email: EMAIL_000001
-                portal: URL_000001
+                admin_email: SCRAMBLE_EMAIL_000001
+                portal: SCRAMBLE_URL_000001
                 """;
 
         String restored = unmaskingEngine.unmask(masked, mappingIndex, null);
@@ -71,9 +72,9 @@ class UnmaskingEngineTest {
     @Test
     void restoresRepeatedTokenOccurrences() {
         MappingIndex repeatedIndex = MappingIndex.from(List.of(
-                record("notes.txt", EntityType.EMAIL, "admin@icici.com", "EMAIL_000001", 0, 15)));
+                record("notes.txt", EntityType.EMAIL, "admin@icici.com", "SCRAMBLE_EMAIL_000001", 0, 15)));
 
-        String masked = "primary: EMAIL_000001 backup: EMAIL_000001";
+        String masked = "primary: SCRAMBLE_EMAIL_000001 backup: SCRAMBLE_EMAIL_000001";
         RestoreResult restoreResult = new RestoreResult();
 
         String restored = unmaskingEngine.unmask(masked, repeatedIndex, restoreResult);
@@ -84,20 +85,20 @@ class UnmaskingEngineTest {
 
     @Test
     void failsOnMissingMapping() {
-        String masked = "contact: EMAIL_000999";
+        String masked = "contact: SCRAMBLE_EMAIL_000999";
 
         MaskingException exception = assertThrows(
                 MaskingException.class,
                 () -> unmaskingEngine.unmask(masked, singleTokenIndex(), null));
 
-        assertTrue(exception.getMessage().contains("Missing mapping for masked token: EMAIL_000999"));
+        assertTrue(exception.getMessage().contains("Missing mapping for masked token: SCRAMBLE_EMAIL_000999"));
     }
 
     @Test
     void failsOnDuplicateMapping() {
         List<EntityReportRecord> duplicateRows = List.of(
-                record("a.txt", EntityType.EMAIL, "first@icici.com", "EMAIL_000001", 0, 15),
-                record("b.txt", EntityType.EMAIL, "second@icici.com", "EMAIL_000001", 0, 16));
+                record("a.txt", EntityType.EMAIL, "first@icici.com", "SCRAMBLE_EMAIL_000001", 0, 15),
+                record("b.txt", EntityType.EMAIL, "second@icici.com", "SCRAMBLE_EMAIL_000001", 0, 16));
 
         ReportException exception = assertThrows(ReportException.class, () -> MappingIndex.from(duplicateRows));
         assertTrue(exception.getMessage().contains("Duplicate masked value"));
@@ -144,10 +145,10 @@ class UnmaskingEngineTest {
     @Test
     void preservesLineBreaksAndFileStructure() {
         MappingIndex index = MappingIndex.from(List.of(
-                record("config/application.yml", EntityType.EMAIL, "admin@icici.com", "EMAIL_000001", 7, 22),
-                record("config/application.yml", EntityType.URL, "https://example.com", "URL_000001", 40, 59)));
+                record("config/application.yml", EntityType.EMAIL, "admin@icici.com", "SCRAMBLE_EMAIL_000001", 7, 22),
+                record("config/application.yml", EntityType.URL, "https://example.com", "SCRAMBLE_URL_000001", 40, 59)));
 
-        String masked = "line1: EMAIL_000001\nline2: unchanged\nline3: URL_000001\n";
+        String masked = "line1: SCRAMBLE_EMAIL_000001\nline2: unchanged\nline3: SCRAMBLE_URL_000001\n";
 
         String restored = unmaskingEngine.unmask(masked, index, null);
 
@@ -163,6 +164,51 @@ class UnmaskingEngineTest {
     }
 
     @Test
+    void restoresDatabaseUrlWithoutUrlSubstringCorruption() {
+        MappingIndex index = MappingIndex.from(List.of(
+                record("db.properties", EntityType.DATABASE_URL,
+                        "jdbc:postgresql://db.icici.internal:5432/loan",
+                        TokenFormatSpec.format(EntityType.DATABASE_URL, 1), 9, 54),
+                record("app.yml", EntityType.URL,
+                        "https://internal.icici.com",
+                        TokenFormatSpec.format(EntityType.URL, 1), 8, 33)));
+
+        String masked = """
+                jdbc.url=%s
+                portal=%s
+                """.formatted(
+                TokenFormatSpec.format(EntityType.DATABASE_URL, 1),
+                TokenFormatSpec.format(EntityType.URL, 1));
+
+        String restored = unmaskingEngine.unmask(masked, index, null);
+
+        assertEquals("""
+                jdbc.url=jdbc:postgresql://db.icici.internal:5432/loan
+                portal=https://internal.icici.com
+                """, restored);
+    }
+
+    @Test
+    void ignoresLegacyLiteralTokensWhenUsingCurrentFormatReport() {
+        MappingIndex index = MappingIndex.from(List.of(
+                record("LoanController.java", EntityType.EMAIL,
+                        "admin@icici.com",
+                        TokenFormatSpec.format(EntityType.EMAIL, 1), 100, 115)));
+
+        String masked = """
+                contact=%s
+                // EMAIL_000001 placeholder token for collision testing
+                """.formatted(TokenFormatSpec.format(EntityType.EMAIL, 1));
+
+        String restored = unmaskingEngine.unmask(masked, index, null);
+
+        assertEquals("""
+                contact=admin@icici.com
+                // EMAIL_000001 placeholder token for collision testing
+                """, restored);
+    }
+
+    @Test
     void returnsOriginalContentWhenNoTokensPresent() {
         MappingIndex emptyIndex = MappingIndex.from(List.of());
 
@@ -171,9 +217,46 @@ class UnmaskingEngineTest {
         assertEquals(content, unmaskingEngine.unmask(content, emptyIndex, null));
     }
 
+    @Test
+    void roundtripRestoresAadhaarUpiAndCreditCard() throws Exception {
+        DetectionEngine detectionEngine = new DetectionEngine();
+        MaskingEngine maskingEngine = new MaskingEngine();
+        MappingRegistry mappingRegistry = new MappingRegistry();
+
+        String original = "aadhaar=123412341232 upi=user@oksbi card=4111111111111111";
+        DetectionResult detection = detectionEngine.detect(new DetectionContext(FILE_INFO, original));
+        String masked = maskingEngine.mask(original, detection, mappingRegistry);
+
+        MappingIndex index = MappingIndex.from(new MappingLoader().load(writeReport(mappingRegistry)));
+        String restored = unmaskingEngine.unmask(masked, index, null);
+
+        assertEquals(original, restored);
+    }
+
+    @Test
+    void roundtripRestoresGstinPanTanAndCin() throws Exception {
+        DetectionEngine detectionEngine = new DetectionEngine();
+        MaskingEngine maskingEngine = new MaskingEngine();
+        MappingRegistry mappingRegistry = new MappingRegistry();
+
+        String original = """
+                gstin=27AAPFU0939F1ZV
+                pan=ABCPA1234F
+                tan=DELM12345L
+                cin=L17110MH1973PLC019786
+                """;
+        DetectionResult detection = detectionEngine.detect(new DetectionContext(FILE_INFO, original));
+        String masked = maskingEngine.mask(original, detection, mappingRegistry);
+
+        MappingIndex index = MappingIndex.from(new MappingLoader().load(writeReport(mappingRegistry)));
+        String restored = unmaskingEngine.unmask(masked, index, null);
+
+        assertEquals(original, restored);
+    }
+
     private static MappingIndex singleTokenIndex() {
         return MappingIndex.from(List.of(
-                record("config/application.yml", EntityType.EMAIL, "admin@icici.com", "EMAIL_000001", 9, 24)));
+                record("config/application.yml", EntityType.EMAIL, "admin@icici.com", "SCRAMBLE_EMAIL_000001", 9, 24)));
     }
 
     private static Path writeReport(MappingRegistry mappingRegistry) throws Exception {

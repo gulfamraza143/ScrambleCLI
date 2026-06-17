@@ -41,14 +41,14 @@ class MaskingEngineTest {
 
         String masked = maskingEngine.mask(content, detection, mappingRegistry);
 
-        assertEquals("contact: EMAIL_000001", masked);
+        assertEquals("contact: SCRAMBLE_EMAIL_000001", masked);
         assertEquals(1, mappingRegistry.getRecords().size());
 
         MappingRecord record = mappingRegistry.getRecords().get(0);
         assertEquals("config/application.yml", record.getRepoRelativePath());
         assertEquals(EntityType.EMAIL, record.getEntityType());
         assertEquals("admin@icici.com", record.getOriginalValue());
-        assertEquals("EMAIL_000001", record.getMaskedValue());
+        assertEquals("SCRAMBLE_EMAIL_000001", record.getMaskedValue());
         assertEquals(9, record.getStartOffset());
         assertEquals(24, record.getEndOffset());
     }
@@ -64,18 +64,18 @@ class MaskingEngineTest {
         String masked = maskingEngine.mask(content, detection, mappingRegistry);
 
         assertEquals("""
-                admin_email: EMAIL_000001
-                portal: URL_000001
+                admin_email: SCRAMBLE_EMAIL_000001
+                portal: SCRAMBLE_URL_000001
                 """, masked);
         assertEquals(2, mappingRegistry.getRecords().size());
-        assertEquals("EMAIL_000001", mappingRegistry.getRecords().get(0).getMaskedValue());
-        assertEquals("URL_000001", mappingRegistry.getRecords().get(1).getMaskedValue());
+        assertEquals("SCRAMBLE_EMAIL_000001", mappingRegistry.getRecords().get(0).getMaskedValue());
+        assertEquals("SCRAMBLE_URL_000001", mappingRegistry.getRecords().get(1).getMaskedValue());
     }
 
     @Test
     void masksMultipleEntityTypes() {
         String content = """
-                pan: ABCDE1234F
+                pan: ABCPA1234F
                 phone: +91-9876543210
                 password: hunter2
                 """;
@@ -83,13 +83,16 @@ class MaskingEngineTest {
         DetectionResult detection = detectionEngine.detect(new DetectionContext(FILE_INFO, content));
         String masked = maskingEngine.mask(content, detection, mappingRegistry);
 
-        assertTrue(masked.contains("PAN_000001"));
-        assertTrue(masked.contains("PHONE_000001"));
-        assertTrue(masked.contains("PASSWORD_000001"));
+        assertEquals("""
+                pan: SCRAMBLE_PAN_000001
+                phone: +SCRAMBLE_PHONE_000001
+                password: SCRAMBLE_PASSWORD_000001
+                """, masked);
         assertEquals(3, mappingRegistry.getRecords().size());
         assertEquals(
                 List.of(EntityType.PAN, EntityType.PHONE, EntityType.PASSWORD),
                 mappingRegistry.getRecords().stream().map(MappingRecord::getEntityType).toList());
+        assertEquals("hunter2", mappingRegistry.getRecords().get(2).getOriginalValue());
     }
 
     @Test
@@ -99,10 +102,10 @@ class MaskingEngineTest {
         DetectionResult detection = detectionEngine.detect(new DetectionContext(FILE_INFO, content));
         String masked = maskingEngine.mask(content, detection, mappingRegistry);
 
-        assertEquals("primary: EMAIL_000001 backup: EMAIL_000002", masked);
+        assertEquals("primary: SCRAMBLE_EMAIL_000001 backup: SCRAMBLE_EMAIL_000002", masked);
         assertEquals(2, mappingRegistry.getRecords().size());
-        assertEquals("EMAIL_000001", mappingRegistry.getRecords().get(0).getMaskedValue());
-        assertEquals("EMAIL_000002", mappingRegistry.getRecords().get(1).getMaskedValue());
+        assertEquals("SCRAMBLE_EMAIL_000001", mappingRegistry.getRecords().get(0).getMaskedValue());
+        assertEquals("SCRAMBLE_EMAIL_000002", mappingRegistry.getRecords().get(1).getMaskedValue());
         assertEquals("admin@icici.com", mappingRegistry.getRecords().get(0).getOriginalValue());
         assertEquals("admin@icici.com", mappingRegistry.getRecords().get(1).getOriginalValue());
     }
@@ -128,7 +131,7 @@ class MaskingEngineTest {
 
         String masked = maskingEngine.mask(content, detection, mappingRegistry);
 
-        assertEquals("email=EMAIL_000001 phone=PHONE_000001 tail", masked);
+        assertEquals("email=SCRAMBLE_EMAIL_000001 phone=SCRAMBLE_PHONE_000001 tail", masked);
         assertEquals(2, mappingRegistry.getRecords().size());
     }
 
@@ -161,7 +164,7 @@ class MaskingEngineTest {
 
         String masked = maskingEngine.mask(content, detection, mappingRegistry);
 
-        assertEquals("line1: EMAIL_000001\nline2: unchanged\nline3: URL_000001\n", masked);
+        assertEquals("line1: SCRAMBLE_EMAIL_000001\nline2: unchanged\nline3: SCRAMBLE_URL_000001\n", masked);
     }
 
     @Test
@@ -175,10 +178,36 @@ class MaskingEngineTest {
         MaskingEngine runEngine = new MaskingEngine();
         MappingRegistry runRegistry = new MappingRegistry();
 
-        assertEquals("user: EMAIL_000001", runEngine.mask(firstContent, firstDetection, runRegistry));
-        assertEquals("backup: EMAIL_000002", runEngine.mask(secondContent, secondDetection, runRegistry));
+        assertEquals("user: SCRAMBLE_EMAIL_000001", runEngine.mask(firstContent, firstDetection, runRegistry));
+        assertEquals("backup: SCRAMBLE_EMAIL_000002", runEngine.mask(secondContent, secondDetection, runRegistry));
         assertEquals(
-                List.of("EMAIL_000001", "EMAIL_000002"),
+                List.of("SCRAMBLE_EMAIL_000001", "SCRAMBLE_EMAIL_000002"),
                 runRegistry.getRecords().stream().map(MappingRecord::getMaskedValue).toList());
+    }
+
+    @Test
+    void masksAadhaarUpiAndCreditCardEntities() {
+        String content = "aadhaar=123412341232 upi=user@oksbi card=4111111111111111";
+        DetectionResult detection = detectionEngine.detect(new DetectionContext(FILE_INFO, content));
+
+        String masked = maskingEngine.mask(content, detection, mappingRegistry);
+
+        assertEquals("aadhaar=SCRAMBLE_AADHAAR_000001 upi=SCRAMBLE_UPI_ID_000001 card=SCRAMBLE_CREDIT_CARD_000001", masked);
+        assertEquals(
+                List.of(EntityType.AADHAAR, EntityType.UPI_ID, EntityType.CREDIT_CARD),
+                mappingRegistry.getRecords().stream().map(MappingRecord::getEntityType).toList());
+    }
+
+    @Test
+    void masksGstinTanAndCinEntities() {
+        String content = "gstin=27AAPFU0939F1ZV tan=DELM12345L cin=L17110MH1973PLC019786";
+        DetectionResult detection = detectionEngine.detect(new DetectionContext(FILE_INFO, content));
+
+        String masked = maskingEngine.mask(content, detection, mappingRegistry);
+
+        assertEquals("gstin=SCRAMBLE_GSTIN_000001 tan=SCRAMBLE_TAN_000001 cin=SCRAMBLE_CIN_000001", masked);
+        assertEquals(
+                List.of(EntityType.GSTIN, EntityType.TAN, EntityType.CIN),
+                mappingRegistry.getRecords().stream().map(MappingRecord::getEntityType).toList());
     }
 }

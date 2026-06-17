@@ -1,0 +1,40 @@
+spring:
+  application:
+    name: icici-loan-platform
+  datasource:
+    url: jdbc:postgresql://db.icici.internal:5432/loan
+    username: loan_app
+    password: root123
+
+server:
+  port: 8080
+
+icici:
+  brand: ICICI
+  partners:
+    - ICICIBANK
+    - ICICILABS
+    - FXTP
+    - WECARE
+  scramble:
+    enabled: true
+    vendor: SCRAMBLE
+
+support:
+  email: duplicate.test@icici.com
+  phone: +91-9876500000
+  portal: https://internal.icici.com/loan-api/v1
+
+security:
+  jwt: eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJ1c2VyIjoiaWNpY2k2Iiwicm9sZSI6ImFkbWluIn0.SIGNATURE2TOKEN1234567890ABCDEF
+  api_key: abcdef1234567890SCRAMBLETEST
+
+# Collision markers: EMAIL_000003 PASSWORD_000003 JWT_000003 URL_000003
+
+customers:
+  - email: customer017@customer.in
+    pan: CDEFG1002H
+    ifsc: AXIS0100003
+  - email: customer018@loans.icici.internal
+    pan: DEFGH1003I
+    ifsc: KKBK0100004

@@ -1,5 +1,8 @@
 package com.scrambler.app;
 
+import com.scrambler.classify.ClassificationResult;
+import com.scrambler.classify.FileCategory;
+import com.scrambler.classify.FileClassifier;
 import com.scrambler.config.ScramblerConfig;
 import com.scrambler.detection.DetectionContext;
 import com.scrambler.detection.DetectionEngine;
@@ -216,7 +219,7 @@ class UnmaskingApplicationIntegrationTest {
                 admin_email: admin@icici.com
                 portal: https://internal.icici.com
                 """);
-        originalFiles.put("docs/readme.md", "Support: support@icici.com\n");
+        originalFiles.put("docs/readme.txt", "Support: support@icici.com\n");
 
         Path originalZip = tempDir.resolve("repo.zip");
         createZip(originalZip, originalFiles);
@@ -313,9 +316,15 @@ class UnmaskingApplicationIntegrationTest {
         MaskingEngine maskingEngine = new MaskingEngine();
         MappingRegistry mappingRegistry = new MappingRegistry();
         Map<String, String> maskedFiles = new LinkedHashMap<>();
+        FileClassifier fileClassifier = new FileClassifier();
 
         for (Map.Entry<String, String> entry : originalFiles.entrySet()) {
             FileInfo fileInfo = new FileInfo(Path.of("/workspace/" + entry.getKey()), entry.getKey(), entry.getValue().length());
+            ClassificationResult classification = fileClassifier.classify(fileInfo);
+            if (classification.getCategory() != FileCategory.TEXT) {
+                maskedFiles.put(entry.getKey(), entry.getValue());
+                continue;
+            }
             DetectionResult detectionResult = detectionEngine.detect(new DetectionContext(fileInfo, entry.getValue()));
             String maskedContent = maskingEngine.mask(entry.getValue(), detectionResult, mappingRegistry);
             maskedFiles.put(entry.getKey(), maskedContent);
