@@ -10,6 +10,7 @@ import java.util.List;
 public final class RestoreResult {
 
     private int filesProcessed;
+    private int filesRestored;
     private int tokensRestored;
     private final List<String> warnings;
 
@@ -27,6 +28,15 @@ public final class RestoreResult {
      */
     public int getFilesProcessed() {
         return filesProcessed;
+    }
+
+    /**
+     * Returns the number of TEXT files that had masked tokens restored.
+     *
+     * @return files restored count
+     */
+    public int getFilesRestored() {
+        return filesRestored;
     }
 
     /**
@@ -52,6 +62,13 @@ public final class RestoreResult {
      */
     public void incrementFilesProcessed() {
         filesProcessed++;
+    }
+
+    /**
+     * Records that one TEXT file had masked tokens restored.
+     */
+    public void incrementFilesRestored() {
+        filesRestored++;
     }
 
     /**
