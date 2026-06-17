@@ -4,7 +4,7 @@
 
 Milestone 1 establishes the foundational pipeline for SCRAMBLECLI: accept a repository ZIP archive, extract it into an isolated temporary workspace, build a file inventory, and print a human-readable summary to stdout. No classification, detection, masking, or reporting occurs at this stage.
 
-This milestone validates the archive and workspace layers defined in `ARCHITECTURE.md` and provides the entry point (`MaskingApplication`) that later milestones extend.
+This milestone validates the archive and workspace layers defined in [ARCHITECTURE.md](ARCHITECTURE.md) and provides the entry point (`MaskingApplication`) that later milestones extend.
 
 # Objective
 
@@ -19,7 +19,7 @@ Deliver a working CLI that:
 
 # Architecture Impact
 
-Milestone 1 implements the first segment of the masking flow defined in `ARCHITECTURE.md`:
+Milestone 1 implements the first segment of the masking flow defined in [ARCHITECTURE.md](ARCHITECTURE.md):
 
 ```
 repo.zip → Extract → Inventory Files
@@ -144,4 +144,4 @@ Milestone 1 does not include a dedicated automated test suite. Verification is m
 
 # Next Steps
 
-Proceed to **Milestone 2 — File Classification** to assign each inventoried file a `FileCategory` (TEXT, DOCUMENT, IMAGE, SKIP) and update inventory output accordingly. See `docs/MILESTONE_2.md`.
+Proceed to **Milestone 2 — File Classification** to assign each inventoried file a `FileCategory` (TEXT, DOCUMENT, IMAGE, SKIP) and update inventory output accordingly. See [MILESTONE_2.md](MILESTONE_2.md).

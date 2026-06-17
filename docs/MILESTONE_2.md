@@ -2,7 +2,7 @@
 
 # Overview
 
-Milestone 2 adds extension-based file classification to the SCRAMBLECLI inventory pipeline. After extraction and file discovery (Milestone 1), each `FileInfo` is assigned a `FileCategory` that determines how the file will be handled in later processing stages per `ReversibilityPolicy` in `ARCHITECTURE.md`.
+Milestone 2 adds extension-based file classification to the SCRAMBLECLI inventory pipeline. After extraction and file discovery (Milestone 1), each `FileInfo` is assigned a `FileCategory` that determines how the file will be handled in later processing stages per `ReversibilityPolicy` in [ARCHITECTURE.md](ARCHITECTURE.md).
 
 Classification is purely extension-based: no content inspection, no MIME detection, no magic-byte sniffing.
 
@@ -25,7 +25,7 @@ repo.zip → Extract → Inventory Files → Classify Files
 
 **Package introduced:** `classify`
 
-**New dependency:** `app` and future pipeline stages depend on `classify`; `classify` depends on `inventory` (`FileInfo`) only. `classify` does not depend on `pipeline`, `detection`, or `masking`, preserving the dependency direction in `ARCHITECTURE.md`.
+**New dependency:** `app` and future pipeline stages depend on `classify`; `classify` depends on `inventory` (`FileInfo`) only. `classify` does not depend on `pipeline`, `detection`, or `masking`, preserving the dependency direction in [ARCHITECTURE.md](ARCHITECTURE.md).
 
 **Ownership rules preserved:**
 
@@ -171,4 +171,4 @@ mvn test
 
 # Next Steps
 
-Proceed to entity **detection** for `FileCategory.TEXT` files. Detection will be gated at the pipeline layer so only TEXT files enter the detection engine, per `ARCHITECTURE.md`. Classification output from this milestone feeds that stage directly.
+Proceed to entity **detection** for `FileCategory.TEXT` files. Detection will be gated at the pipeline layer so only TEXT files enter the detection engine, per [ARCHITECTURE.md](ARCHITECTURE.md). Classification output from this milestone feeds that stage directly.
