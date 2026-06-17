@@ -1,0 +1,10 @@
+/Users/gulfamraza/Desktop/ScrambleCLI/zip/ScrambleJavaCLI/src/main/java/com/scrambler/app/MaskingApplication.java
+/Users/gulfamraza/Desktop/ScrambleCLI/zip/ScrambleJavaCLI/src/main/java/com/scrambler/archive/ZipExtractor.java
+/Users/gulfamraza/Desktop/ScrambleCLI/zip/ScrambleJavaCLI/src/main/java/com/scrambler/config/ScramblerConfig.java
+/Users/gulfamraza/Desktop/ScrambleCLI/zip/ScrambleJavaCLI/src/main/java/com/scrambler/exception/ArchiveException.java
+/Users/gulfamraza/Desktop/ScrambleCLI/zip/ScrambleJavaCLI/src/main/java/com/scrambler/exception/FileProcessingException.java
+/Users/gulfamraza/Desktop/ScrambleCLI/zip/ScrambleJavaCLI/src/main/java/com/scrambler/inventory/FileInfo.java
+/Users/gulfamraza/Desktop/ScrambleCLI/zip/ScrambleJavaCLI/src/main/java/com/scrambler/inventory/FileIterator.java
+/Users/gulfamraza/Desktop/ScrambleCLI/zip/ScrambleJavaCLI/src/main/java/com/scrambler/inventory/RepositoryInventory.java
+/Users/gulfamraza/Desktop/ScrambleCLI/zip/ScrambleJavaCLI/src/main/java/com/scrambler/workspace/Workspace.java
+/Users/gulfamraza/Desktop/ScrambleCLI/zip/ScrambleJavaCLI/src/main/java/com/scrambler/workspace/WorkspaceManager.java
