@@ -10,10 +10,12 @@ import com.scrambler.detection.DetectionEngine;
 import com.scrambler.detection.DetectionResult;
 import com.scrambler.exception.ArchiveException;
 import com.scrambler.exception.FileProcessingException;
+import com.scrambler.exception.ReportException;
 import com.scrambler.file.TextFileReader;
-import com.scrambler.masking.MappingRecord;
 import com.scrambler.masking.MappingRegistry;
 import com.scrambler.masking.MaskingEngine;
+import com.scrambler.report.CsvReportWriter;
+import com.scrambler.report.ReportSchema;
 import com.scrambler.inventory.FileInfo;
 import com.scrambler.inventory.FileIterator;
 import com.scrambler.inventory.RepositoryInventory;
@@ -28,7 +30,7 @@ import java.util.List;
 
 /**
  * Entry point for the masking CLI.
- * Milestone 4 extends detection with reversible token masking for text files.
+ * Milestone 5 persists masking mappings to {@link ReportSchema#REPORT_FILENAME}.
  */
 public final class MaskingApplication {
 
@@ -36,14 +38,13 @@ public final class MaskingApplication {
     static final int EXIT_INVALID_USAGE = 1;
     static final int EXIT_PROCESSING_FAILURE = 2;
 
-    private static final int ENTITY_TYPE_DISPLAY_WIDTH = 13;
-
     private final WorkspaceManager workspaceManager;
     private final ZipExtractor zipExtractor;
     private final FileIterator fileIterator;
     private final FileClassifier fileClassifier;
     private final DetectionEngine detectionEngine;
     private final MaskingEngine maskingEngine;
+    private final CsvReportWriter csvReportWriter;
     private final TextFileReader textFileReader;
     private final ScramblerConfig config;
 
@@ -67,6 +68,7 @@ public final class MaskingApplication {
         this.fileClassifier = new FileClassifier();
         this.detectionEngine = new DetectionEngine();
         this.maskingEngine = new MaskingEngine();
+        this.csvReportWriter = new CsvReportWriter();
         this.textFileReader = new TextFileReader();
     }
 
@@ -101,9 +103,11 @@ public final class MaskingApplication {
             RepositoryInventory inventory = new RepositoryInventory(fileIterator.collectFiles(extractionRoot));
             MappingRegistry mappingRegistry = new MappingRegistry();
             List<MaskedFileResult> maskedFiles = maskTextFiles(inventory, mappingRegistry);
-            printMaskedResults(maskedFiles, mappingRegistry);
+            Path reportPath = resolveReportPath(zipPath);
+            csvReportWriter.write(mappingRegistry, reportPath);
+            printSummary(maskedFiles, mappingRegistry, reportPath);
             return EXIT_SUCCESS;
-        } catch (ArchiveException | FileProcessingException e) {
+        } catch (ArchiveException | FileProcessingException | ReportException e) {
             return reportProcessingFailure(e);
         } catch (RuntimeException e) {
             return reportProcessingFailure(e);
@@ -148,35 +152,21 @@ public final class MaskingApplication {
         System.err.println("Usage: java -jar scramble-mask.jar <repo.zip>");
     }
 
-    private static void printMaskedResults(List<MaskedFileResult> maskedFiles, MappingRegistry mappingRegistry) {
-        System.out.println("===== MASKED FILES =====");
-        System.out.println();
-
-        for (MaskedFileResult maskedFile : maskedFiles) {
-            System.out.println("File:");
-            System.out.println(maskedFile.repoRelativePath());
-            System.out.println();
-            System.out.println(maskedFile.maskedContent());
-            System.out.println();
+    private static Path resolveReportPath(Path zipPath) {
+        Path reportDirectory = zipPath.toAbsolutePath().getParent();
+        if (reportDirectory == null) {
+            reportDirectory = Paths.get(".");
         }
+        return reportDirectory.resolve(ReportSchema.REPORT_FILENAME);
+    }
 
-        if (maskedFiles.isEmpty()) {
-            System.out.println("No sensitive entities detected.");
-            System.out.println();
-        }
-
-        System.out.println("===== MAPPINGS =====");
-        System.out.println();
-
-        for (MappingRecord record : mappingRegistry.getRecords()) {
-            String typeLabel = String.format("%-" + ENTITY_TYPE_DISPLAY_WIDTH + "s", record.getEntityType().name());
-            System.out.println(record.getRepoRelativePath() + " | " + typeLabel + record.getMaskedValue());
-        }
-
-        if (mappingRegistry.getRecords().isEmpty()) {
-            System.out.println("No mappings recorded.");
-            System.out.println();
-        }
+    private static void printSummary(
+            List<MaskedFileResult> maskedFiles,
+            MappingRegistry mappingRegistry,
+            Path reportPath) {
+        System.out.println("Masked files: " + maskedFiles.size());
+        System.out.println("Entities masked: " + mappingRegistry.getRecords().size());
+        System.out.println("Report: " + reportPath.toAbsolutePath().normalize());
     }
 
     private record MaskedFileResult(String repoRelativePath, String maskedContent) {
