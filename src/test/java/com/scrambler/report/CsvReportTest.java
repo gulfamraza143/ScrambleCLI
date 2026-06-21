@@ -37,11 +37,11 @@ class CsvReportTest {
                 record("src/a.yml", EntityType.EMAIL, "admin@icici.com", "SCRAMBLE_EMAIL_000001", 10, 25),
                 record("src/b.yml", EntityType.PASSWORD, "password=admin123", "SCRAMBLE_PASSWORD_000001", 150, 170));
 
-        Path reportPath = tempDir.resolve(ReportSchema.REPORT_FILENAME);
+        Path reportPath = tempDir.resolve("entity_report.csv");
         writer.write(registry, reportPath);
 
         List<String> lines = Files.readAllLines(reportPath, StandardCharsets.UTF_8);
-        assertEquals("report_version," + ReportSchema.CURRENT_VERSION, lines.get(0));
+        assertEquals("report_version," + ReportSchema.LEGACY_CSV_VERSION, lines.get(0));
         assertEquals(String.join(",", ReportSchema.DATA_COLUMNS), lines.get(1));
         assertEquals(
                 "src/a.yml,EMAIL,admin@icici.com,SCRAMBLE_EMAIL_000001,10,25",
@@ -56,14 +56,14 @@ class CsvReportTest {
         MappingRegistry registry = registryWith(
                 record("config/app.yml", EntityType.EMAIL, "admin@icici.com", "SCRAMBLE_EMAIL_000001", 100, 115));
 
-        Path reportPath = tempDir.resolve(ReportSchema.REPORT_FILENAME);
+        Path reportPath = tempDir.resolve("entity_report.csv");
         writer.write(registry, reportPath);
 
         List<EntityReportRecord> records = reader.read(reportPath);
         assertEquals(1, records.size());
 
         EntityReportRecord record = records.get(0);
-        assertEquals(ReportSchema.CURRENT_VERSION, record.getReportVersion());
+        assertEquals(ReportSchema.LEGACY_CSV_VERSION, record.getReportVersion());
         assertEquals("config/app.yml", record.getRepoRelativePath());
         assertEquals(EntityType.EMAIL, record.getEntityType());
         assertEquals("admin@icici.com", record.getOriginalValue());
@@ -78,7 +78,7 @@ class CsvReportTest {
                 record("src/main/resources/application.yml", EntityType.EMAIL, "admin@icici.com", "SCRAMBLE_EMAIL_000001", 100, 115),
                 record("src/main/resources/application.yml", EntityType.PASSWORD, "password=admin123", "SCRAMBLE_PASSWORD_000001", 150, 170));
 
-        Path reportPath = tempDir.resolve(ReportSchema.REPORT_FILENAME);
+        Path reportPath = tempDir.resolve("entity_report.csv");
         writer.write(registry, reportPath);
 
         List<EntityReportRecord> records = reader.read(reportPath);
@@ -96,7 +96,7 @@ class CsvReportTest {
         MappingRegistry registry = registryWith(
                 record("unicode.txt", EntityType.COMPANY_BRAND, original, "COMPANY_BRAND_000001", 0, original.length()));
 
-        Path reportPath = tempDir.resolve(ReportSchema.REPORT_FILENAME);
+        Path reportPath = tempDir.resolve("entity_report.csv");
         writer.write(registry, reportPath);
 
         List<EntityReportRecord> records = reader.read(reportPath);
@@ -109,7 +109,7 @@ class CsvReportTest {
         MappingRegistry registry = registryWith(
                 record("data.csv", EntityType.SECRET_KEY, "key=a,b,c", "SCRAMBLE_SECRET_KEY_000001", 5, 14));
 
-        Path reportPath = tempDir.resolve(ReportSchema.REPORT_FILENAME);
+        Path reportPath = tempDir.resolve("entity_report.csv");
         writer.write(registry, reportPath);
 
         String line = Files.readAllLines(reportPath, StandardCharsets.UTF_8).get(2);
@@ -124,7 +124,7 @@ class CsvReportTest {
         MappingRegistry registry = registryWith(
                 record("notes.txt", EntityType.PASSWORD, "pass=\"secret\"", "SCRAMBLE_PASSWORD_000001", 0, 14));
 
-        Path reportPath = tempDir.resolve(ReportSchema.REPORT_FILENAME);
+        Path reportPath = tempDir.resolve("entity_report.csv");
         writer.write(registry, reportPath);
 
         String line = Files.readAllLines(reportPath, StandardCharsets.UTF_8).get(2);
@@ -140,7 +140,7 @@ class CsvReportTest {
         MappingRegistry registry = registryWith(
                 record("multiline.txt", EntityType.API_KEY, original, "SCRAMBLE_API_KEY_000001", 0, original.length()));
 
-        Path reportPath = tempDir.resolve(ReportSchema.REPORT_FILENAME);
+        Path reportPath = tempDir.resolve("entity_report.csv");
         writer.write(registry, reportPath);
 
         List<EntityReportRecord> records = reader.read(reportPath);
@@ -150,7 +150,7 @@ class CsvReportTest {
     @Test
     void emptyReportContainsOnlyHeaders() throws Exception {
         MappingRegistry registry = new MappingRegistry();
-        Path reportPath = tempDir.resolve(ReportSchema.REPORT_FILENAME);
+        Path reportPath = tempDir.resolve("entity_report.csv");
 
         writer.write(registry, reportPath);
 
@@ -161,14 +161,14 @@ class CsvReportTest {
 
     @Test
     void rejectsUnsupportedVersion() throws Exception {
-        Path reportPath = tempDir.resolve(ReportSchema.REPORT_FILENAME);
+        Path reportPath = tempDir.resolve("entity_report.csv");
         Files.writeString(reportPath, """
-                report_version,2.0
+                report_version,3.0
                 repo_relative_path,entity_type,original_value,masked_value,start_offset,end_offset
                 """, StandardCharsets.UTF_8);
 
         ReportException exception = assertThrows(ReportException.class, () -> reader.read(reportPath));
-        assertTrue(exception.getMessage().contains("Unsupported report version: 2.0"));
+        assertTrue(exception.getMessage().contains("Unsupported report version: 3.0"));
     }
 
     @Test
@@ -178,7 +178,7 @@ class CsvReportTest {
                 record("vendor.csv", EntityType.TAN, "DELM12345L", "SCRAMBLE_TAN_000001", 20, 30),
                 record("vendor.csv", EntityType.CIN, "L17110MH1973PLC019786", "SCRAMBLE_CIN_000001", 40, 61));
 
-        Path reportPath = tempDir.resolve(ReportSchema.REPORT_FILENAME);
+        Path reportPath = tempDir.resolve("entity_report.csv");
         writer.write(registry, reportPath);
 
         List<EntityReportRecord> records = reader.read(reportPath);
@@ -196,7 +196,7 @@ class CsvReportTest {
         registry.register(record("a.txt", EntityType.EMAIL, "a@b.com", "SCRAMBLE_EMAIL_000001", 0, 7));
         registry.register(record("a.txt", EntityType.URL, "https://a", "SCRAMBLE_URL_000001", 10, 19));
 
-        Path reportPath = tempDir.resolve(ReportSchema.REPORT_FILENAME);
+        Path reportPath = tempDir.resolve("entity_report.csv");
         writer.write(registry, reportPath);
 
         List<EntityReportRecord> records = reader.read(reportPath);
@@ -208,7 +208,7 @@ class CsvReportTest {
 
     @Test
     void overwritesExistingReport() throws Exception {
-        Path reportPath = tempDir.resolve(ReportSchema.REPORT_FILENAME);
+        Path reportPath = tempDir.resolve("entity_report.csv");
         Files.writeString(reportPath, "stale,data", StandardCharsets.UTF_8);
 
         MappingRegistry registry = registryWith(
@@ -246,7 +246,7 @@ class CsvReportTest {
             int start,
             int end) {
         return new EntityReportRecord(
-                ReportSchema.CURRENT_VERSION,
+                ReportSchema.LEGACY_CSV_VERSION,
                 path,
                 type,
                 original,

@@ -14,7 +14,8 @@ class CompanyDictionaryTest {
         CompanyDictionary dictionary = CompanyDictionary.defaults();
 
         assertEquals(
-                List.of("ICICI", "ICICIBANK", "ICICILABS", "FXTP", "WECARE", "SCRAMBLE"),
+                List.of("ICICI", "ICICI Bank", "ICICI Lombard", "ICICI Prudential",
+                        "ICICIBANK", "ICICILABS", "FXTP", "WECARE", "SCRAMBLE"),
                 dictionary.getTerms());
     }
 

@@ -10,7 +10,7 @@ import com.scrambler.detection.DetectionResult;
 import com.scrambler.inventory.FileInfo;
 import com.scrambler.masking.MappingRegistry;
 import com.scrambler.masking.MaskingEngine;
-import com.scrambler.report.CsvReportWriter;
+import com.scrambler.report.TestReportWriter;
 import com.scrambler.report.ReportSchema;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.io.TempDir;
@@ -120,15 +120,15 @@ class UnmaskingApplicationIntegrationTest {
         Path maskedZip = tempDir.resolve("masked_repo.zip");
         Path reportPath = tempDir.resolve(ReportSchema.REPORT_FILENAME);
         createZip(maskedZip, Map.of("app.txt", "contact: EMAIL_000001\n"));
-        Files.writeString(reportPath, """
-                report_version,2.0
+        Files.writeString(tempDir.resolve("unsupported.csv"), """
+                report_version,3.0
                 repo_relative_path,entity_type,original_value,masked_value,start_offset,end_offset
                 app.txt,EMAIL,admin@icici.com,EMAIL_000001,9,24
                 """, StandardCharsets.UTF_8);
 
         int exitCode = new UnmaskingApplication(configFor(tempDir)).run(new String[]{
                 maskedZip.toString(),
-                reportPath.toString()
+                tempDir.resolve("unsupported.csv").toString()
         });
 
         assertEquals(UnmaskingApplication.EXIT_PROCESSING_FAILURE, exitCode);
@@ -228,7 +228,7 @@ class UnmaskingApplicationIntegrationTest {
         Path maskedZip = tempDir.resolve("masked_repo.zip");
         createZip(maskedZip, maskedRepository.maskedFiles());
         Path reportPath = tempDir.resolve(ReportSchema.REPORT_FILENAME);
-        new CsvReportWriter().write(maskedRepository.mappingRegistry(), reportPath);
+        new com.scrambler.report.XlsxReportWriter().write(maskedRepository.mappingRegistry(), reportPath);
 
         int exitCode = new UnmaskingApplication(configFor(tempDir)).run(new String[]{
                 maskedZip.toString(),
@@ -271,13 +271,18 @@ class UnmaskingApplicationIntegrationTest {
     }
 
     private static void writeReport(Path reportPath, List<String> dataRows) throws IOException {
-        StringBuilder builder = new StringBuilder();
-        builder.append("report_version,").append(ReportSchema.CURRENT_VERSION).append('\n');
-        builder.append(String.join(",", ReportSchema.DATA_COLUMNS)).append('\n');
+        List<com.scrambler.masking.MappingRecord> rows = new java.util.ArrayList<>();
         for (String row : dataRows) {
-            builder.append(row).append('\n');
+            String[] parts = row.split(",", -1);
+            rows.add(TestReportWriter.record(
+                    parts[0],
+                    com.scrambler.detection.EntityType.valueOf(parts[1]),
+                    parts[2],
+                    parts[3],
+                    Integer.parseInt(parts[4]),
+                    Integer.parseInt(parts[5])));
         }
-        Files.writeString(reportPath, builder.toString(), StandardCharsets.UTF_8);
+        TestReportWriter.writeXlsx(reportPath, rows);
     }
 
     private static String readZipEntry(Path zipPath, String entryName) throws IOException {

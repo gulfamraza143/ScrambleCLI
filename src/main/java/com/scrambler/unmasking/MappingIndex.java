@@ -39,8 +39,12 @@ public final class MappingIndex {
             String maskedValue = record.getMaskedValue();
             String originalValue = record.getOriginalValue();
 
-            if (maskedToOriginal.containsKey(maskedValue)) {
-                throw new ReportException("Duplicate masked value in entity report: " + maskedValue);
+            String existingOriginal = maskedToOriginal.get(maskedValue);
+            if (existingOriginal != null) {
+                if (!existingOriginal.equals(originalValue)) {
+                    throw new ReportException("Duplicate masked value in entity report: " + maskedValue);
+                }
+                continue;
             }
             maskedToOriginal.put(maskedValue, originalValue);
         }

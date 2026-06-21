@@ -1,0 +1,118 @@
+{
+  "bank": "SCRAMBLE_COMPANY_BRAND_000043",
+  "partners": [
+    "SCRAMBLE_COMPANY_BRAND_000044",
+    "SCRAMBLE_COMPANY_BRAND_000045",
+    "SCRAMBLE_COMPANY_BRAND_000046",
+    "SCRAMBLE_COMPANY_BRAND_000047",
+    "SCRAMBLE_COMPANY_BRAND_000048"
+  ],
+  "customers": [
+    {
+      "email": "SCRAMBLE_EMAIL_000086",
+      "phone": "+SCRAMBLE_PHONE_000059",
+      "pan": "ABCDE1234F",
+      "ifsc": "SCRAMBLE_IFSC_000057"
+    },
+    {
+      "email": "SCRAMBLE_EMAIL_000087",
+      "phone": "+SCRAMBLE_PHONE_000060",
+      "pan": "BCDEF1001G",
+      "ifsc": "SCRAMBLE_IFSC_000058"
+    },
+    {
+      "email": "SCRAMBLE_EMAIL_000088",
+      "phone": "+SCRAMBLE_PHONE_000061",
+      "pan": "SCRAMBLE_PAN_000015",
+      "ifsc": "SCRAMBLE_IFSC_000059"
+    },
+    {
+      "email": "SCRAMBLE_EMAIL_000089",
+      "phone": "+SCRAMBLE_PHONE_000062",
+      "pan": "SCRAMBLE_PAN_000016",
+      "ifsc": "SCRAMBLE_IFSC_000060"
+    },
+    {
+      "email": "SCRAMBLE_EMAIL_000090",
+      "phone": "+SCRAMBLE_PHONE_000063",
+      "pan": "SCRAMBLE_PAN_000017",
+      "ifsc": "SCRAMBLE_IFSC_000061"
+    },
+    {
+      "email": "SCRAMBLE_EMAIL_000091",
+      "phone": "+SCRAMBLE_PHONE_000064",
+      "pan": "FGHIJ1005K",
+      "ifsc": "SCRAMBLE_IFSC_000062"
+    },
+    {
+      "email": "SCRAMBLE_EMAIL_000092",
+      "phone": "+SCRAMBLE_PHONE_000065",
+      "pan": "SCRAMBLE_PAN_000018",
+      "ifsc": "SCRAMBLE_IFSC_000063"
+    },
+    {
+      "email": "SCRAMBLE_EMAIL_000093",
+      "phone": "+SCRAMBLE_PHONE_000066",
+      "pan": "HIJKL1007M",
+      "ifsc": "SCRAMBLE_IFSC_000064"
+    },
+    {
+      "email": "SCRAMBLE_EMAIL_000094",
+      "phone": "+SCRAMBLE_PHONE_000067",
+      "pan": "SCRAMBLE_PAN_000019",
+      "ifsc": "SCRAMBLE_IFSC_000065"
+    },
+    {
+      "email": "SCRAMBLE_EMAIL_000095",
+      "phone": "+SCRAMBLE_PHONE_000068",
+      "pan": "JKLMN1009O",
+      "ifsc": "SCRAMBLE_IFSC_000066"
+    }
+  ],
+  "duplicates": {
+    "email": "SCRAMBLE_EMAIL_000096",
+    "pan": "ABCDE1234F",
+    "ifsc": "SCRAMBLE_IFSC_000067",
+    "url": "SCRAMBLE_URL_000035",
+    "api_key": "SCRAMBLE_API_KEY_000022",
+    "jwt": "SCRAMBLE_JWT_000029"
+  },
+  "secrets": {
+    "password": "SCRAMBLE_PASSWORD_000014",
+    "db_password": "root123",
+    "api_key": "SCRAMBLE_API_KEY_000023"
+  },
+  "infra": {
+    "portal": "SCRAMBLE_URL_000036",
+    "internal_ip": "SCRAMBLE_IP_ADDRESS_000012",
+    "jdbc": "SCRAMBLE_DATABASE_URL_000009"
+  },
+  "edge_cases": {
+    "unicode": "\u0928\u092e\u0938\u094d\u0924\u0947 SCRAMBLE_COMPANY_BRAND_000049",
+    "comma_separated": "SCRAMBLE_EMAIL_000097, SCRAMBLE_EMAIL_000098",
+    "quoted": "\"SCRAMBLE_EMAIL_000099\"",
+    "multiline": "line1\\nline2\\t{EMAIL_DUP}"
+  },
+  "collision_markers": [
+    "EMAIL_000001",
+    "EMAIL_000002",
+    "EMAIL_000003",
+    "EMAIL_000004",
+    "EMAIL_000005",
+    "EMAIL_000006",
+    "EMAIL_000007",
+    "EMAIL_000008",
+    "EMAIL_000009",
+    "EMAIL_000010",
+    "EMAIL_000011",
+    "EMAIL_000012",
+    "EMAIL_000013",
+    "EMAIL_000014",
+    "EMAIL_000015",
+    "EMAIL_000016",
+    "EMAIL_000017",
+    "EMAIL_000018",
+    "EMAIL_000019",
+    "EMAIL_000020"
+  ]
+}

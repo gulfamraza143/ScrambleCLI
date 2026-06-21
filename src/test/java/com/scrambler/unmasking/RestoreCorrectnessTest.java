@@ -14,7 +14,8 @@ import com.scrambler.masking.MappingRegistry;
 import com.scrambler.masking.MaskingEngine;
 import com.scrambler.masking.TokenFormatSpec;
 import com.scrambler.report.EntityReportRecord;
-import com.scrambler.report.CsvReportWriter;
+import com.scrambler.report.TestReportWriter;
+import com.scrambler.report.XlsxReportWriter;
 import com.scrambler.report.ReportDigest;
 import com.scrambler.report.ReportSchema;
 import org.junit.jupiter.api.BeforeEach;
@@ -143,7 +144,7 @@ class RestoreCorrectnessTest {
 
     @Test
     void rejectsBlankOriginalValueViaCsv(@TempDir Path tempDir) throws Exception {
-        Path reportPath = tempDir.resolve(ReportSchema.REPORT_FILENAME);
+        Path reportPath = tempDir.resolve("tampered.csv");
         writeReport(reportPath, List.of(
                 "a.txt,EMAIL,   ," + TokenFormatSpec.format(EntityType.EMAIL, 1) + ",0,15"));
 
@@ -155,8 +156,12 @@ class RestoreCorrectnessTest {
 
     @Test
     void rejectsBlankMaskedValueViaCsv(@TempDir Path tempDir) throws Exception {
-        Path reportPath = tempDir.resolve(ReportSchema.REPORT_FILENAME);
-        writeReport(reportPath, List.of("a.txt,EMAIL,admin@icici.com,   ,0,15"));
+        Path reportPath = tempDir.resolve("invalid.csv");
+        Files.writeString(reportPath, """
+                report_version,1.0
+                repo_relative_path,entity_type,original_value,masked_value,start_offset,end_offset
+                a.txt,EMAIL,admin@icici.com,   ,0,15
+                """, StandardCharsets.UTF_8);
 
         ReportException exception = assertThrows(
                 ReportException.class,
@@ -167,9 +172,12 @@ class RestoreCorrectnessTest {
 
     @Test
     void rejectsBlankRepoRelativePathViaCsv(@TempDir Path tempDir) throws Exception {
-        Path reportPath = tempDir.resolve(ReportSchema.REPORT_FILENAME);
-        writeReport(reportPath, List.of(
-                "   ,EMAIL,admin@icici.com," + TokenFormatSpec.format(EntityType.EMAIL, 1) + ",0,15"));
+        Path reportPath = tempDir.resolve("invalid.csv");
+        Files.writeString(reportPath, """
+                report_version,1.0
+                repo_relative_path,entity_type,original_value,masked_value,start_offset,end_offset
+                   ,EMAIL,admin@icici.com,EMAIL_000001,0,15
+                """, StandardCharsets.UTF_8);
 
         ReportException exception = assertThrows(
                 ReportException.class,
@@ -181,7 +189,7 @@ class RestoreCorrectnessTest {
 
     @Test
     void rejectsTamperedReportWhenDigestPresent(@TempDir Path tempDir) throws Exception {
-        Path reportPath = tempDir.resolve(ReportSchema.REPORT_FILENAME);
+        Path reportPath = tempDir.resolve("tampered.csv");
         writeReport(reportPath, List.of(
                 "a.txt,EMAIL,admin@icici.com," + TokenFormatSpec.format(EntityType.EMAIL, 1) + ",0,15"));
         ReportDigest.write(reportPath, tempDir.resolve(ReportDigest.DIGEST_FILENAME));
@@ -198,7 +206,7 @@ class RestoreCorrectnessTest {
     void unmaskFailsOnTamperedReportWithDigest(@TempDir Path tempDir) throws Exception {
         String token = TokenFormatSpec.format(EntityType.EMAIL, 1);
         Path maskedZip = tempDir.resolve("masked_repo.zip");
-        Path reportPath = tempDir.resolve(ReportSchema.REPORT_FILENAME);
+        Path reportPath = tempDir.resolve("tampered.csv");
         createZip(maskedZip, Map.of("a.txt", "email: " + token + "\n"));
         writeReport(reportPath, List.of("a.txt,EMAIL,admin@icici.com," + token + ",7,22"));
         ReportDigest.write(reportPath, tempDir.resolve(ReportDigest.DIGEST_FILENAME));
@@ -269,8 +277,8 @@ class RestoreCorrectnessTest {
         DetectionResult detection = detectionEngine.detect(new DetectionContext(FILE_INFO, original));
         String masked = maskingEngine.mask(original, detection, mappingRegistry);
 
-        Path reportPath = Files.createTempFile("entity-report", ".csv");
-        new CsvReportWriter().write(mappingRegistry, reportPath);
+        Path reportPath = Files.createTempFile("entity-report", ".xlsx");
+        new XlsxReportWriter().write(mappingRegistry, reportPath);
         MappingIndex index = MappingIndex.from(new MappingLoader().load(reportPath));
         return unmaskingEngine.unmask(masked, index, null);
     }
@@ -290,7 +298,7 @@ class RestoreCorrectnessTest {
         Path maskedZip = tempDir.resolve("masked_repo.zip");
         Path reportPath = tempDir.resolve(ReportSchema.REPORT_FILENAME);
         createZip(maskedZip, maskedFiles);
-        new CsvReportWriter().write(mappingRegistry, reportPath);
+        new XlsxReportWriter().write(mappingRegistry, reportPath);
         ReportDigest.write(reportPath, tempDir.resolve(ReportDigest.DIGEST_FILENAME));
 
         int exitCode = new UnmaskingApplication(configFor(tempDir)).run(new String[]{
@@ -339,13 +347,22 @@ class RestoreCorrectnessTest {
     }
 
     private static void writeReport(Path reportPath, List<String> dataRows) throws IOException {
-        StringBuilder builder = new StringBuilder();
-        builder.append("report_version,").append(ReportSchema.CURRENT_VERSION).append('\n');
-        builder.append(String.join(",", ReportSchema.DATA_COLUMNS)).append('\n');
+        List<com.scrambler.masking.MappingRecord> rows = new java.util.ArrayList<>();
         for (String row : dataRows) {
-            builder.append(row).append('\n');
+            String[] parts = row.split(",", -1);
+            rows.add(TestReportWriter.record(
+                    parts[0],
+                    EntityType.valueOf(parts[1]),
+                    parts[2],
+                    parts[3],
+                    Integer.parseInt(parts[4]),
+                    Integer.parseInt(parts[5])));
         }
-        Files.writeString(reportPath, builder.toString(), StandardCharsets.UTF_8);
+        if (reportPath.getFileName().toString().endsWith(".csv")) {
+            TestReportWriter.writeCsv(reportPath, rows);
+        } else {
+            TestReportWriter.writeXlsx(reportPath, rows);
+        }
     }
 
     private static String readZipEntry(Path zipPath, String entryName) throws IOException {

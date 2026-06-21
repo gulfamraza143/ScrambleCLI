@@ -4,10 +4,10 @@ import com.scrambler.exception.ReportException;
 import com.scrambler.report.EntityReportRecord;
 import com.scrambler.report.ReportSchema;
 
-import java.util.HashSet;
+import java.util.HashMap;
 import java.util.List;
+import java.util.Map;
 import java.util.Objects;
-import java.util.Set;
 
 /**
  * Validates entity report rows before building an unmask lookup index.
@@ -24,7 +24,7 @@ public final class RestoreValidator {
         Objects.requireNonNull(records, "records must not be null");
 
         String reportVersion = null;
-        Set<String> maskedValues = new HashSet<>();
+        Map<String, String> maskedToOriginal = new HashMap<>();
 
         for (EntityReportRecord record : records) {
             validateRecord(record);
@@ -37,9 +37,11 @@ public final class RestoreValidator {
 
             ReportSchema.validateVersion(record.getReportVersion());
 
-            if (!maskedValues.add(record.getMaskedValue())) {
+            String existingOriginal = maskedToOriginal.get(record.getMaskedValue());
+            if (existingOriginal != null && !existingOriginal.equals(record.getOriginalValue())) {
                 throw new ReportException("Duplicate masked value in entity report: " + record.getMaskedValue());
             }
+            maskedToOriginal.put(record.getMaskedValue(), record.getOriginalValue());
         }
     }
 

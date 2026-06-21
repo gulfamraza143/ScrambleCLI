@@ -6,35 +6,33 @@ import com.scrambler.detection.EntityType;
 
 import java.util.ArrayList;
 import java.util.Comparator;
-import java.util.EnumMap;
 import java.util.List;
-import java.util.Map;
 import java.util.Objects;
 
 /**
- * Converts detected entities into masked tokens using a supplied detection result.
+ * Converts detected entities into format-preserving masked values using a global value mapper.
  */
 public final class MaskingEngine {
 
     private final EntityReplacer entityReplacer;
-    private final Map<EntityType, Integer> tokenCounters;
+    private final GlobalValueMapper globalValueMapper;
 
     /**
-     * Creates a masking engine with default collaborators and fresh per-run token counters.
+     * Creates a masking engine with default collaborators and a fresh global value mapper.
      */
     public MaskingEngine() {
-        this(new EntityReplacer(), new EnumMap<>(EntityType.class));
+        this(new EntityReplacer(), new GlobalValueMapper());
     }
 
     /**
-     * Creates a masking engine with shared token counters for deterministic numbering across files.
+     * Creates a masking engine with a shared global value mapper for deterministic mappings across files.
      *
-     * @param entityReplacer span replacement collaborator
-     * @param tokenCounters  mutable per-type counters keyed by entity type
+     * @param entityReplacer     span replacement collaborator
+     * @param globalValueMapper  shared original-to-masked dictionary for the run
      */
-    MaskingEngine(EntityReplacer entityReplacer, Map<EntityType, Integer> tokenCounters) {
+    MaskingEngine(EntityReplacer entityReplacer, GlobalValueMapper globalValueMapper) {
         this.entityReplacer = Objects.requireNonNull(entityReplacer, "entityReplacer must not be null");
-        this.tokenCounters = Objects.requireNonNull(tokenCounters, "tokenCounters must not be null");
+        this.globalValueMapper = Objects.requireNonNull(globalValueMapper, "globalValueMapper must not be null");
     }
 
     /**
@@ -60,7 +58,7 @@ public final class MaskingEngine {
 
         List<EntityReplacer.Replacement> replacements = new ArrayList<>(entities.size());
         for (Entity entity : entities) {
-            String maskedValue = nextToken(entity.getType());
+            String maskedValue = globalValueMapper.resolve(entity.getType(), entity.getOriginalValue());
             mappingRegistry.register(new MappingRecord(
                     repoRelativePath,
                     entity.getType(),
@@ -77,8 +75,12 @@ public final class MaskingEngine {
         return entityReplacer.replace(content, replacements);
     }
 
-    private String nextToken(EntityType entityType) {
-        int sequence = tokenCounters.merge(entityType, 1, Integer::sum);
-        return TokenFormatSpec.format(entityType, sequence);
+    /**
+     * Returns the shared global value mapper used by this engine.
+     *
+     * @return global value mapper
+     */
+    public GlobalValueMapper getGlobalValueMapper() {
+        return globalValueMapper;
     }
 }

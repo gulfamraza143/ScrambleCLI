@@ -4,8 +4,8 @@ import com.scrambler.detection.DetectionContext;
 import com.scrambler.detection.DetectionEngine;
 import com.scrambler.detection.DetectionResult;
 import com.scrambler.inventory.FileInfo;
-import com.scrambler.report.CsvReportWriter;
 import com.scrambler.report.ReportSchema;
+import com.scrambler.report.TestReportWriter;
 import com.scrambler.unmasking.MappingIndex;
 import com.scrambler.unmasking.MappingLoader;
 import com.scrambler.unmasking.UnmaskingEngine;
@@ -17,6 +17,8 @@ import java.nio.file.Path;
 import java.nio.file.Paths;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertFalse;
+import static org.junit.jupiter.api.Assertions.assertTrue;
 
 class AssignmentFormatPreservationTest {
 
@@ -40,52 +42,39 @@ class AssignmentFormatPreservationTest {
 
     @Test
     void masksPropertiesPasswordAssignment() {
-        assertMasked(
-                "password=secret123",
-                "password=SCRAMBLE_PASSWORD_000001");
+        assertAssignmentPreserved("password=secret123", "password=");
     }
 
     @Test
     void masksPropertiesDbPasswordAssignment() {
-        assertMasked(
-                "db.password=secret123",
-                "db.password=SCRAMBLE_PASSWORD_000001");
+        assertAssignmentPreserved("db.password=secret123", "db.password=");
     }
 
     @Test
     void masksYamlPasswordAssignment() {
-        assertMasked(
-                "password: secret123",
-                "password: SCRAMBLE_PASSWORD_000001");
+        assertAssignmentPreserved("password: secret123", "password: ");
     }
 
     @Test
     void masksJsonPasswordAssignment() {
-        assertMasked(
-                """
-                        {
-                        "password": "secret123"
-                        }
-                        """,
-                """
-                        {
-                        "password": "SCRAMBLE_PASSWORD_000001"
-                        }
-                        """);
+        String original = """
+                {
+                "password": "secret123"
+                }
+                """;
+        String masked = mask(original);
+        assertTrue(masked.contains("\"password\": \""));
+        assertFalse(masked.contains("secret123"));
     }
 
     @Test
     void masksApiKeyAssignment() {
-        assertMasked(
-                "api.key=abcdef",
-                "api.key=SCRAMBLE_API_KEY_000001");
+        assertAssignmentPreserved("api.key=abcdef", "api.key=");
     }
 
     @Test
     void masksSecretKeyAssignment() {
-        assertMasked(
-                "client.secret=xyz",
-                "client.secret=SCRAMBLE_SECRET_KEY_000001");
+        assertAssignmentPreserved("client.secret=xyz", "client.secret=");
     }
 
     @Test
@@ -93,16 +82,14 @@ class AssignmentFormatPreservationTest {
         String token = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9."
                 + "eyJ1c2VyIjoiaWNpY2kifQ."
                 + "SIGNATURETOKEN1234567890ABCDEF";
-        assertMasked(
-                "jwt.token=" + token,
-                "jwt.token=SCRAMBLE_JWT_000001");
+        assertAssignmentPreserved("jwt.token=" + token, "jwt.token=");
     }
 
     @Test
     void masksJdbcUrlAssignment() {
-        assertMasked(
+        assertAssignmentPreserved(
                 "jdbc.url=jdbc:postgresql://localhost:5432/test",
-                "jdbc.url=SCRAMBLE_DATABASE_URL_000001");
+                "jdbc.url=");
     }
 
     @Test
@@ -120,7 +107,7 @@ class AssignmentFormatPreservationTest {
         String masked = maskingEngine.mask(original, detection, mappingRegistry);
 
         Path reportPath = tempDir.resolve(ReportSchema.REPORT_FILENAME);
-        new CsvReportWriter().write(mappingRegistry, reportPath);
+        TestReportWriter.writeXlsx(mappingRegistry, reportPath);
 
         MappingIndex mappingIndex = MappingIndex.from(new MappingLoader().load(reportPath));
         String restored = unmaskingEngine.unmask(masked, mappingIndex, null);
@@ -128,10 +115,23 @@ class AssignmentFormatPreservationTest {
         assertEquals(original, restored);
     }
 
-    private void assertMasked(String original, String expectedMasked) {
+    private void assertAssignmentPreserved(String original, String assignmentPrefix) {
+        String masked = mask(original);
+        assertTrue(masked.startsWith(assignmentPrefix));
+        assertFalse(masked.contains(extractSecret(original)));
+    }
+
+    private String mask(String original) {
         mappingRegistry = new MappingRegistry();
         DetectionResult detection = detectionEngine.detect(new DetectionContext(FILE_INFO, original));
-        String masked = maskingEngine.mask(original, detection, mappingRegistry);
-        assertEquals(expectedMasked, masked);
+        return maskingEngine.mask(original, detection, mappingRegistry);
+    }
+
+    private static String extractSecret(String original) {
+        int separator = Math.max(original.indexOf('='), original.indexOf(':'));
+        if (separator < 0) {
+            return original;
+        }
+        return original.substring(separator + 1).trim().replace("\"", "");
     }
 }

@@ -1,7 +1,7 @@
 package com.scrambler.app;
 
+import com.scrambler.archive.ArchiveExtractor;
 import com.scrambler.archive.ZipCreator;
-import com.scrambler.archive.ZipExtractor;
 import com.scrambler.classify.ClassificationResult;
 import com.scrambler.classify.FileCategory;
 import com.scrambler.classify.FileClassifier;
@@ -43,7 +43,7 @@ public final class UnmaskingApplication {
     static final int EXIT_PROCESSING_FAILURE = 2;
 
     private final WorkspaceManager workspaceManager;
-    private final ZipExtractor zipExtractor;
+    private final ArchiveExtractor archiveExtractor;
     private final ZipCreator zipCreator;
     private final FileIterator fileIterator;
     private final FileClassifier fileClassifier;
@@ -69,7 +69,7 @@ public final class UnmaskingApplication {
     public UnmaskingApplication(ScramblerConfig config) {
         this.config = config;
         this.workspaceManager = new WorkspaceManager();
-        this.zipExtractor = new ZipExtractor(workspaceManager, config);
+        this.archiveExtractor = new ArchiveExtractor(workspaceManager, config);
         this.zipCreator = new ZipCreator(workspaceManager);
         this.fileIterator = new FileIterator(workspaceManager);
         this.fileClassifier = new FileClassifier();
@@ -109,7 +109,7 @@ public final class UnmaskingApplication {
         Workspace workspace = null;
         try {
             workspace = workspaceManager.createWorkspace(config);
-            Path extractionRoot = zipExtractor.extract(maskedZipPath, workspace);
+            Path extractionRoot = archiveExtractor.extract(maskedZipPath, workspace);
             List<EntityReportRecord> records = mappingLoader.load(reportPath);
             verifyReportDigest(reportPath);
             restoreValidator.validate(records);
@@ -164,7 +164,7 @@ public final class UnmaskingApplication {
     }
 
     private static void printUsage() {
-        System.err.println("Usage: java -jar scramble-unmask.jar <masked_repo.zip> <entity_report.csv>");
+        System.err.println("Usage: java -jar scramble-unmask.jar <masked_code.zip> <entity_report.xlsx>");
     }
 
     private static void verifyReportDigest(Path reportPath) {

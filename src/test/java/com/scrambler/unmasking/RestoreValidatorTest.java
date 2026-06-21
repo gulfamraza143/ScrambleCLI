@@ -53,10 +53,10 @@ class RestoreValidatorTest {
     @Test
     void rejectsUnsupportedReportVersion() {
         EntityReportRecord unsupported = new EntityReportRecord(
-                "2.0", "a.txt", EntityType.EMAIL, "a@b.com", "EMAIL_000001", 0, 7);
+                "3.0", "a.txt", EntityType.EMAIL, "a@b.com", "EMAIL_000001", 0, 7);
 
         ReportException exception = assertThrows(ReportException.class, () -> validator.validate(List.of(unsupported)));
-        assertTrue(exception.getMessage().contains("Unsupported report version: 2.0"));
+        assertTrue(exception.getMessage().contains("Unsupported report version: 3.0"));
     }
 
     private static EntityReportRecord record(

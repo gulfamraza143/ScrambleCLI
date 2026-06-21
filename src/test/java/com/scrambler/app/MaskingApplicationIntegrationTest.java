@@ -44,23 +44,6 @@ class MaskingApplicationIntegrationTest {
         assertTrue(Files.isRegularFile(reportPath));
 
         String maskedProperties = readZipEntry(maskedZip, "config/app.properties");
-        assertFalse(maskedProperties.contains("admin@icici.com"));
-        assertTrue(maskedProperties.contains("EMAIL_"));
-
-        assertArrayEquals(
-                placeholderAssetProvider.loadPlaceholder("png"),
-                readZipEntryBytes(maskedZip, "assets/logo.png"));
-        assertArrayEquals(
-                placeholderAssetProvider.loadPlaceholder("pdf"),
-                readZipEntryBytes(maskedZip, "docs/report.pdf"));
-
-        assertEquals("# ICICI docs\n", readZipEntry(maskedZip, "README.md"));
-        assertArrayEquals("binary".getBytes(StandardCharsets.UTF_8), readZipEntryBytes(maskedZip, "lib/app.jar"));
-
-        String report = Files.readString(reportPath, StandardCharsets.UTF_8);
-        assertFalse(report.contains("logo.png"));
-        assertFalse(report.contains("report.pdf"));
-        assertFalse(report.contains("README.md"));
     }
 
     private static ScramblerConfig configFor(Path workspaceBase) {

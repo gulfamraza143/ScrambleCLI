@@ -106,16 +106,16 @@ class UnmaskingEngineTest {
 
     @Test
     void rejectsUnsupportedVersion(@TempDir Path tempDir) throws Exception {
-        Path reportPath = tempDir.resolve(ReportSchema.REPORT_FILENAME);
+        Path reportPath = tempDir.resolve("entity_report.csv");
         Files.writeString(reportPath, """
-                report_version,2.0
+                report_version,3.0
                 repo_relative_path,entity_type,original_value,masked_value,start_offset,end_offset
                 """, StandardCharsets.UTF_8);
 
         MappingLoader mappingLoader = new MappingLoader();
 
         ReportException exception = assertThrows(ReportException.class, () -> mappingLoader.load(reportPath));
-        assertTrue(exception.getMessage().contains("Unsupported report version: 2.0"));
+        assertTrue(exception.getMessage().contains("Unsupported report version: 3.0"));
     }
 
     @Test
@@ -261,7 +261,7 @@ class UnmaskingEngineTest {
 
     private static Path writeReport(MappingRegistry mappingRegistry) throws Exception {
         Path reportPath = Files.createTempFile("entity-report", ".csv");
-        new CsvReportWriter().write(mappingRegistry, reportPath);
+        new com.scrambler.report.CsvReportWriter().write(mappingRegistry, reportPath);
         return reportPath;
     }
 

@@ -14,6 +14,8 @@ import java.util.regex.Pattern;
 
 /**
  * Restores masked text content using a pre-built mapping index.
+ * <p>
+ * Supports both legacy SCRAMBLE token placeholders and format-preserving literal masked values.
  */
 public final class UnmaskingEngine {
 
@@ -36,10 +38,10 @@ public final class UnmaskingEngine {
     }
 
     /**
-     * Restores masked tokens in file content to their original values.
+     * Restores masked values in file content to their original values.
      *
      * @param maskedContent masked file content
-     * @param mappingIndex  lookup from masked token to original value
+     * @param mappingIndex  lookup from masked value to original value
      * @param restoreResult optional aggregate counters and warnings; may be {@code null}
      * @return restored file content with structure and line breaks preserved
      * @throws MaskingException when a masked token has no mapping
@@ -48,10 +50,21 @@ public final class UnmaskingEngine {
         Objects.requireNonNull(maskedContent, "maskedContent must not be null");
         Objects.requireNonNull(mappingIndex, "mappingIndex must not be null");
 
+        if (mappingIndex.size() == 0) {
+            return maskedContent;
+        }
+
+        if (usesTokenFormat(mappingIndex)) {
+            return unmaskTokens(maskedContent, mappingIndex, restoreResult);
+        }
+        return unmaskLiteralValues(maskedContent, mappingIndex, restoreResult);
+    }
+
+    private String unmaskTokens(String maskedContent, MappingIndex mappingIndex, RestoreResult restoreResult) {
         Pattern tokenPattern = resolveTokenPattern(mappingIndex);
         detectMissingMappings(maskedContent, mappingIndex, tokenPattern);
 
-        List<EntityReplacer.Replacement> replacements = collectReplacements(
+        List<EntityReplacer.Replacement> replacements = collectTokenReplacements(
                 maskedContent,
                 mappingIndex,
                 tokenPattern);
@@ -64,6 +77,28 @@ public final class UnmaskingEngine {
             restoreResult.addTokensRestored(replacements.size());
         }
         return restored;
+    }
+
+    private String unmaskLiteralValues(String maskedContent, MappingIndex mappingIndex, RestoreResult restoreResult) {
+        List<EntityReplacer.Replacement> replacements = collectLiteralReplacements(maskedContent, mappingIndex);
+        if (replacements.isEmpty()) {
+            return maskedContent;
+        }
+
+        String restored = entityReplacer.replace(maskedContent, replacements);
+        if (restoreResult != null) {
+            restoreResult.addTokensRestored(replacements.size());
+        }
+        return restored;
+    }
+
+    private static boolean usesTokenFormat(MappingIndex mappingIndex) {
+        for (String maskedValue : mappingIndex.getMaskedValues()) {
+            if (TokenFormatSpec.isCurrentFormat(maskedValue) || TokenFormatSpec.isLegacyFormat(maskedValue)) {
+                return true;
+            }
+        }
+        return false;
     }
 
     private static Pattern resolveTokenPattern(MappingIndex mappingIndex) {
@@ -105,7 +140,7 @@ public final class UnmaskingEngine {
         }
     }
 
-    private static List<EntityReplacer.Replacement> collectReplacements(
+    private static List<EntityReplacer.Replacement> collectTokenReplacements(
             String maskedContent,
             MappingIndex mappingIndex,
             Pattern tokenPattern) {
@@ -121,6 +156,33 @@ public final class UnmaskingEngine {
                     matcher.start(),
                     matcher.end(),
                     mappingIndex.getOriginalValue(token)));
+        }
+
+        replacements.sort(Comparator.comparingInt(EntityReplacer.Replacement::startOffset).reversed());
+        return replacements;
+    }
+
+    private static List<EntityReplacer.Replacement> collectLiteralReplacements(
+            String maskedContent,
+            MappingIndex mappingIndex) {
+        List<String> maskedValues = mappingIndex.getMaskedValues().stream()
+                .sorted(Comparator.comparingInt(String::length).reversed())
+                .toList();
+
+        List<EntityReplacer.Replacement> replacements = new ArrayList<>();
+        for (String maskedValue : maskedValues) {
+            int searchFrom = 0;
+            while (searchFrom <= maskedContent.length() - maskedValue.length()) {
+                int index = maskedContent.indexOf(maskedValue, searchFrom);
+                if (index < 0) {
+                    break;
+                }
+                replacements.add(new EntityReplacer.Replacement(
+                        index,
+                        index + maskedValue.length(),
+                        mappingIndex.getOriginalValue(maskedValue)));
+                searchFrom = index + maskedValue.length();
+            }
         }
 
         replacements.sort(Comparator.comparingInt(EntityReplacer.Replacement::startOffset).reversed());

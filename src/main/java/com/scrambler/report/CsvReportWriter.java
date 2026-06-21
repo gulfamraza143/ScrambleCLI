@@ -53,7 +53,7 @@ public final class CsvReportWriter {
         try (BufferedWriter writer = Files.newBufferedWriter(outputPath, StandardCharsets.UTF_8)) {
             writer.write(ReportSchema.VERSION_HEADER);
             writer.write(',');
-            writer.write(ReportSchema.CURRENT_VERSION);
+            writer.write(ReportSchema.LEGACY_CSV_VERSION);
             writer.newLine();
 
             writer.write(String.join(",", ReportSchema.DATA_COLUMNS));
