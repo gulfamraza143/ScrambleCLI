@@ -1,5 +1,6 @@
 package com.scrambler.workspace;
 
+import com.scrambler.archive.ExtractionBudget;
 import com.scrambler.config.ScramblerConfig;
 import com.scrambler.exception.ArchiveException;
 
@@ -37,7 +38,7 @@ public final class WorkspaceManager {
             rootPath = createRestrictedDirectory(basePath.resolve("scramble-" + runId));
             Path extractionPath = createRestrictedDirectory(rootPath.resolve(EXTRACTION_DIR_NAME));
 
-            return new Workspace(runId, rootPath, extractionPath);
+            return new Workspace(runId, rootPath, extractionPath, new ExtractionBudget(config));
         } catch (IOException e) {
             deleteRecursively(rootPath);
             throw new ArchiveException("Failed to create workspace", e);

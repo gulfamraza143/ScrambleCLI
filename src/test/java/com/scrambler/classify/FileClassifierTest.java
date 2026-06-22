@@ -1,6 +1,11 @@
 package com.scrambler.classify;
 
+import com.scrambler.detection.DetectionContext;
+import com.scrambler.detection.DetectionEngine;
+import com.scrambler.detection.DetectionResult;
 import com.scrambler.inventory.FileInfo;
+import com.scrambler.masking.MaskingEngine;
+import com.scrambler.masking.MappingRegistry;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.params.ParameterizedTest;
@@ -10,6 +15,7 @@ import java.nio.file.Path;
 import java.nio.file.Paths;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertSame;
 import static org.junit.jupiter.api.Assertions.assertThrows;
 
@@ -54,9 +60,10 @@ class FileClassifierTest {
             "certs/server.pem, TEXT",
             "certs/private.key, TEXT",
             "certs/root.crt, TEXT",
-            "certs/keystore.p12, TEXT",
             "data/customers.csv, TEXT",
-            "logs/application.log, TEXT"
+            "logs/application.log, TEXT",
+            "README.md, TEXT",
+            "docs/ARCHITECTURE.md, TEXT"
     })
     void classifiesApprovedTextExtensions(String repoRelativePath, FileCategory expectedCategory) {
         ClassificationResult result = fileClassifier.classify(fileInfo(repoRelativePath));
@@ -67,8 +74,6 @@ class FileClassifierTest {
 
     @ParameterizedTest
     @CsvSource({
-            "README.md, SKIP",
-            "docs/ARCHITECTURE.md, SKIP",
             "data/unknown, SKIP",
             "Makefile, SKIP",
             "Dockerfile, SKIP",
@@ -128,7 +133,10 @@ class FileClassifierTest {
             "native/lib.so, SKIP",
             "native/lib.dylib, SKIP",
             "native/app.dll, SKIP",
-            "native/app.bin, SKIP"
+            "native/app.bin, SKIP",
+            "certs/keystore.p12, SKIP",
+            "certs/KEYSTORE.P12, SKIP",
+            "certs/Keystore.P12, SKIP"
     })
     void classifiesSkipFiles(String repoRelativePath, FileCategory expectedCategory) {
         ClassificationResult result = fileClassifier.classify(fileInfo(repoRelativePath));
@@ -148,6 +156,31 @@ class FileClassifierTest {
     @Test
     void rejectsNullFileInfo() {
         assertThrows(NullPointerException.class, () -> fileClassifier.classify(null));
+    }
+
+    @Test
+    void markdownFilesEnterDetectionAndMaskingPipeline() {
+        String content = """
+                Admin Email: [admin@bank.com](mailto:admin@bank.com)
+                Portal: https://internal.icici.com
+                password: hunter2
+                """;
+        FileInfo readme = fileInfo("README.md");
+        ClassificationResult classification = fileClassifier.classify(readme);
+
+        assertEquals(FileCategory.TEXT, classification.getCategory());
+
+        DetectionEngine detectionEngine = new DetectionEngine();
+        DetectionResult detectionResult = detectionEngine.detect(new DetectionContext(readme, content));
+        assertFalse(detectionResult.getEntities().isEmpty());
+
+        MaskingEngine maskingEngine = new MaskingEngine();
+        MappingRegistry mappingRegistry = new MappingRegistry();
+        String masked = maskingEngine.mask(content, detectionResult, mappingRegistry);
+
+        assertFalse(masked.contains("admin@bank.com"));
+        assertFalse(masked.contains("https://internal.icici.com"));
+        assertFalse(masked.contains("hunter2"));
     }
 
     private static FileInfo fileInfo(String repoRelativePath) {

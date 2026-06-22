@@ -1,6 +1,7 @@
 package com.scrambler.inventory;
 
 import com.scrambler.exception.FileProcessingException;
+import com.scrambler.security.SymbolicLinkGuard;
 import com.scrambler.workspace.WorkspaceManager;
 
 import java.io.IOException;
@@ -46,10 +47,15 @@ public final class FileIterator {
         List<FileInfo> files = new ArrayList<>();
 
         try (Stream<Path> paths = Files.walk(extractionRoot)) {
-            paths.filter(Files::isRegularFile)
-                    .map(path -> toFileInfo(extractionRoot, path))
-                    .sorted(Comparator.comparing(FileInfo::getRepoRelativePath))
-                    .forEach(files::add);
+            paths.forEach(path -> {
+                if (SymbolicLinkGuard.skipIfSymbolicLink(path, extractionRoot.relativize(path))) {
+                    return;
+                }
+                if (Files.isRegularFile(path)) {
+                    files.add(toFileInfo(extractionRoot, path));
+                }
+            });
+            files.sort(Comparator.comparing(FileInfo::getRepoRelativePath));
         } catch (IOException e) {
             throw new FileProcessingException("Failed to traverse repository: " + extractionRoot, e);
         } catch (RuntimeException e) {

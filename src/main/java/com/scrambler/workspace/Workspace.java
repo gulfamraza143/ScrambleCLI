@@ -1,5 +1,7 @@
 package com.scrambler.workspace;
 
+import com.scrambler.archive.ExtractionBudget;
+
 import java.nio.file.Path;
 import java.util.Objects;
 import java.util.UUID;
@@ -12,18 +14,21 @@ public final class Workspace {
     private final String runId;
     private final Path rootPath;
     private final Path extractionPath;
+    private final ExtractionBudget extractionBudget;
 
     /**
      * Creates a workspace bound to a run identifier and directory layout.
      *
-     * @param runId         unique identifier for this run
-     * @param rootPath      root temporary directory for the run
-     * @param extractionPath directory where repository archives are extracted
+     * @param runId             unique identifier for this run
+     * @param rootPath          root temporary directory for the run
+     * @param extractionPath    directory where repository archives are extracted
+     * @param extractionBudget  global extraction limits tracker for this run
      */
-    public Workspace(String runId, Path rootPath, Path extractionPath) {
+    public Workspace(String runId, Path rootPath, Path extractionPath, ExtractionBudget extractionBudget) {
         this.runId = Objects.requireNonNull(runId, "runId must not be null");
         this.rootPath = Objects.requireNonNull(rootPath, "rootPath must not be null");
         this.extractionPath = Objects.requireNonNull(extractionPath, "extractionPath must not be null");
+        this.extractionBudget = Objects.requireNonNull(extractionBudget, "extractionBudget must not be null");
     }
 
     /**
@@ -60,5 +65,14 @@ public final class Workspace {
      */
     public Path getExtractionPath() {
         return extractionPath;
+    }
+
+    /**
+     * Returns the global extraction budget for this run.
+     *
+     * @return extraction budget
+     */
+    public ExtractionBudget getExtractionBudget() {
+        return extractionBudget;
     }
 }

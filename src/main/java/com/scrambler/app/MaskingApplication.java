@@ -10,9 +10,11 @@ import com.scrambler.config.ScramblerConfig;
 import com.scrambler.detection.DetectionContext;
 import com.scrambler.detection.DetectionEngine;
 import com.scrambler.detection.DetectionResult;
+import com.scrambler.exception.AlreadyMaskedException;
 import com.scrambler.exception.ArchiveException;
 import com.scrambler.exception.FileProcessingException;
 import com.scrambler.exception.ReportException;
+import com.scrambler.repository.RepositoryMetadata;
 import com.scrambler.file.TextFileReader;
 import com.scrambler.file.TextFileWriter;
 import com.scrambler.masking.MappingRegistry;
@@ -28,6 +30,8 @@ import com.scrambler.replacement.ReplacementPlan;
 import com.scrambler.workspace.Workspace;
 import com.scrambler.workspace.WorkspaceManager;
 
+import java.io.IOException;
+import java.nio.file.Files;
 import java.nio.file.Path;
 import java.nio.file.Paths;
 import java.util.ArrayList;
@@ -138,6 +142,10 @@ public final class MaskingApplication {
 
         Workspace workspace = null;
         try {
+            if (Files.isDirectory(inputPath)) {
+                RepositoryMetadata.ensureNotAlreadyMasked(inputPath);
+            }
+
             printPipelineHeader();
 
             printStage(1, "Workspace Creation");
@@ -148,6 +156,7 @@ public final class MaskingApplication {
 
             printStage(2, "Repository Extraction");
             Path extractionRoot = archiveExtractor.extract(inputPath, workspace);
+            RepositoryMetadata.ensureNotAlreadyMasked(extractionRoot);
             printSuccess("Repository Extracted");
             printDetail("Extraction Root", extractionRoot);
             System.out.println();
@@ -194,6 +203,7 @@ public final class MaskingApplication {
             Path digestPath = resolveDigestPath(reportPath);
             ReportDigest.write(reportPath, digestPath);
             printSuccess(ReportDigest.DIGEST_FILENAME);
+            RepositoryMetadata.writeMarker(extractionRoot);
             Path maskedZipPath = resolveMaskedZipPath(inputPath);
             zipCreator.create(extractionRoot, maskedZipPath, workspace);
             printSuccess(OUTPUT_ARCHIVE_NAME);
@@ -204,8 +214,12 @@ public final class MaskingApplication {
 
             printSummary(maskedFiles, mappingRegistry, placeholdersReplaced);
             return EXIT_SUCCESS;
+        } catch (AlreadyMaskedException e) {
+            return reportAlreadyMasked();
         } catch (ArchiveException | FileProcessingException | ReportException e) {
             return reportProcessingFailure(e);
+        } catch (IOException e) {
+            return reportProcessingFailure(new FileProcessingException("Failed to write repository metadata marker", e));
         } catch (RuntimeException e) {
             return reportProcessingFailure(e);
         } finally {
@@ -329,6 +343,12 @@ public final class MaskingApplication {
         printMetric("Unique Values Mapped", maskingEngine.getGlobalValueMapper().size());
         printMetric("Placeholders Applied", placeholdersReplaced);
         System.out.println("==================================================");
+    }
+
+    private static int reportAlreadyMasked() {
+        System.err.println("ERROR " + RepositoryMetadata.ERROR_HEADLINE);
+        System.err.println(RepositoryMetadata.ERROR_DETAIL);
+        return EXIT_PROCESSING_FAILURE;
     }
 
     private static int reportProcessingFailure(Throwable failure) {

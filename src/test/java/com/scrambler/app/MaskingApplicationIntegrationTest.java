@@ -32,7 +32,12 @@ class MaskingApplicationIntegrationTest {
                 "config/app.properties", "admin_email=admin@icici.com\n",
                 "assets/logo.png", new byte[]{(byte) 0x89, 0x50, 0x4E, 0x47},
                 "docs/report.pdf", "secret pdf".getBytes(StandardCharsets.UTF_8),
-                "README.md", "# ICICI docs\n",
+                "README.md", """
+                        # ICICI docs
+                        Admin Email: [admin@bank.com](mailto:admin@bank.com)
+                        Portal: https://internal.icici.com
+                        password: hunter2
+                        """,
                 "lib/app.jar", "binary".getBytes(StandardCharsets.UTF_8)));
 
         int exitCode = new MaskingApplication(configFor(tempDir)).run(new String[]{repoZip.toString()});
@@ -44,6 +49,12 @@ class MaskingApplicationIntegrationTest {
         assertTrue(Files.isRegularFile(reportPath));
 
         String maskedProperties = readZipEntry(maskedZip, "config/app.properties");
+        assertFalse(maskedProperties.contains("admin@icici.com"));
+
+        String maskedReadme = readZipEntry(maskedZip, "README.md");
+        assertFalse(maskedReadme.contains("admin@bank.com"));
+        assertFalse(maskedReadme.contains("https://internal.icici.com"));
+        assertFalse(maskedReadme.contains("hunter2"));
     }
 
     private static ScramblerConfig configFor(Path workspaceBase) {

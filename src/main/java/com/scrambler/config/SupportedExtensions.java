@@ -26,8 +26,9 @@ public final class SupportedExtensions {
             "sh", "bash", "bat", "ps1",
             "html", "css",
             "jsp",
-            "pem", "key", "crt", "p12",
-            "csv", "log");
+            "pem", "key", "crt",
+            "csv", "log",
+            "md");
 
     private static final Set<String> DOCUMENT = Set.of(
             "pdf",
@@ -45,7 +46,7 @@ public final class SupportedExtensions {
             "class",
             "exe", "dll", "so", "dylib",
             "bin", "dat",
-            "md");
+            "p12");
 
     private static final Map<FileCategory, Set<String>> BY_CATEGORY = Map.of(
             FileCategory.TEXT, TEXT,

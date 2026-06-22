@@ -110,8 +110,8 @@ public final class UnmaskingApplication {
         try {
             workspace = workspaceManager.createWorkspace(config);
             Path extractionRoot = archiveExtractor.extract(maskedZipPath, workspace);
-            List<EntityReportRecord> records = mappingLoader.load(reportPath);
             verifyReportDigest(reportPath);
+            List<EntityReportRecord> records = mappingLoader.load(reportPath);
             restoreValidator.validate(records);
             MappingIndex mappingIndex = MappingIndex.from(records);
             RestoreResult restoreResult = restoreTextFiles(

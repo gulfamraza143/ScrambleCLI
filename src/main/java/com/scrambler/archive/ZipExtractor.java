@@ -1,19 +1,23 @@
 package com.scrambler.archive;
 
+import org.apache.commons.compress.archivers.zip.ZipArchiveEntry;
+import org.apache.commons.compress.archivers.zip.ZipFile;
 import com.scrambler.config.ScramblerConfig;
 import com.scrambler.exception.ArchiveException;
+import com.scrambler.security.SymbolicLinkGuard;
 import com.scrambler.workspace.Workspace;
 import com.scrambler.workspace.WorkspaceManager;
 
 import java.io.IOException;
 import java.io.InputStream;
+import java.io.OutputStream;
 import java.nio.file.Files;
 import java.nio.file.Path;
-import java.util.zip.ZipEntry;
-import java.util.zip.ZipInputStream;
+import java.util.Enumeration;
 
 /**
- * Extracts repository ZIP archives into a workspace using streaming I/O.
+ * Extracts repository ZIP archives into a workspace using random-access I/O so
+ * central-directory metadata (including Unix symlink attributes) is available.
  */
 public final class ZipExtractor {
 
@@ -22,25 +26,11 @@ public final class ZipExtractor {
     private final WorkspaceManager workspaceManager;
     private final ScramblerConfig config;
 
-    /**
-     * Creates a ZIP extractor bound to workspace safety helpers and configuration limits.
-     *
-     * @param workspaceManager workspace manager providing zip-slip validation
-     * @param config           configuration providing archive safety limits
-     */
     public ZipExtractor(WorkspaceManager workspaceManager, ScramblerConfig config) {
         this.workspaceManager = workspaceManager;
         this.config = config;
     }
 
-    /**
-     * Extracts the given ZIP archive into the workspace extraction directory.
-     *
-     * @param zipFile   path to the repository ZIP archive
-     * @param workspace active workspace receiving extracted content
-     * @return extraction root directory containing repository files
-     * @throws ArchiveException if the archive is missing, corrupt, unsafe, or exceeds configured limits
-     */
     public Path extract(Path zipFile, Workspace workspace) {
         if (zipFile == null) {
             throw new ArchiveException("ZIP file path must not be null");
@@ -52,39 +42,47 @@ public final class ZipExtractor {
             throw new ArchiveException("ZIP file does not exist or is not a regular file: " + zipFile);
         }
 
-        Path extractionRoot = workspace.getExtractionPath();
+        extractZipFileInto(zipFile, workspace.getExtractionPath(), workspace.getExtractionBudget());
+        return workspace.getExtractionPath();
+    }
+
+    void extractZipFileInto(Path zipFile, Path extractionRoot, ExtractionBudget budget) {
         long entryCount = 0L;
-        long totalUncompressedBytes = 0L;
+        long archiveUncompressedBytes = 0L;
+        long compressedArchiveSize;
 
-        try (InputStream inputStream = Files.newInputStream(zipFile);
-             ZipInputStream zipInputStream = new ZipInputStream(inputStream)) {
+        try {
+            compressedArchiveSize = Files.size(zipFile);
+        } catch (IOException e) {
+            throw new ArchiveException("Failed to read ZIP archive size: " + zipFile, e);
+        }
 
-            ZipEntry entry;
-            while ((entry = zipInputStream.getNextEntry()) != null) {
-                try {
-                    entryCount++;
-                    if (entryCount > config.getMaxZipEntries()) {
-                        throw new ArchiveException(
-                                "ZIP entry count exceeds configured limit: " + config.getMaxZipEntries()
-                        );
+        try (ZipFile zipArchive = ZipFile.builder().setPath(zipFile).get()) {
+            Enumeration<ZipArchiveEntry> entries = zipArchive.getEntries();
+            while (entries.hasMoreElements()) {
+                ZipArchiveEntry entry = entries.nextElement();
+                entryCount++;
+                validateEntryCount(entryCount);
+
+                if (SymbolicLinkGuard.isZipSymlink(entry)) {
+                    SymbolicLinkGuard.logSkippedArchiveSymlink(entry.getName());
+                    continue;
+                }
+
+                budget.validateEntryCompressionRatio(entry.getCompressedSize(), entry.getSize());
+
+                Path targetPath = workspaceManager.resolveSafeExtractPath(extractionRoot, entry.getName());
+                if (entry.isDirectory()) {
+                    Files.createDirectories(targetPath);
+                } else {
+                    createParentDirectories(targetPath, entry.getName());
+                    if (budget.skipIfOversized(entry.getName(), entry.getSize())) {
+                        continue;
                     }
-
-                    Path targetPath = workspaceManager.resolveSafeExtractPath(extractionRoot, entry.getName());
-                    if (entry.isDirectory()) {
-                        Files.createDirectories(targetPath);
-                    } else {
-                        createParentDirectories(targetPath, entry.getName());
-                        long writtenBytes = copyEntry(zipInputStream, targetPath);
-                        totalUncompressedBytes += writtenBytes;
-                        if (totalUncompressedBytes > config.getMaxUncompressedBytes()) {
-                            throw new ArchiveException(
-                                    "Uncompressed ZIP size exceeds configured limit: "
-                                            + config.getMaxUncompressedBytes()
-                            );
-                        }
+                    try (InputStream inputStream = zipArchive.getInputStream(entry)) {
+                        long writtenBytes = copyEntry(inputStream, targetPath, entry.getName(), budget);
+                        archiveUncompressedBytes += writtenBytes;
                     }
-                } finally {
-                    zipInputStream.closeEntry();
                 }
             }
         } catch (ArchiveException e) {
@@ -97,7 +95,13 @@ public final class ZipExtractor {
             throw new ArchiveException("ZIP archive contains no entries: " + zipFile);
         }
 
-        return extractionRoot;
+        budget.validateArchiveCompressionRatio(compressedArchiveSize, archiveUncompressedBytes);
+    }
+
+    private void validateEntryCount(long entryCount) {
+        if (entryCount > config.getMaxZipEntries()) {
+            throw new ArchiveException("Archive entry count exceeds configured limit: " + config.getMaxZipEntries());
+        }
     }
 
     private void createParentDirectories(Path targetPath, String entryName) throws IOException {
@@ -110,23 +114,38 @@ public final class ZipExtractor {
         Files.createDirectories(parentDirectory);
     }
 
-    private long copyEntry(ZipInputStream zipInputStream, Path targetPath) throws IOException {
+    private long copyEntry(
+            InputStream inputStream,
+            Path targetPath,
+            String entryName,
+            ExtractionBudget budget) throws IOException {
         long totalBytes = 0L;
         byte[] buffer = new byte[COPY_BUFFER_SIZE];
 
-        try (var outputStream = Files.newOutputStream(targetPath)) {
+        try (OutputStream outputStream = Files.newOutputStream(targetPath)) {
             int read;
-            while ((read = zipInputStream.read(buffer)) != -1) {
+            while ((read = inputStream.read(buffer)) != -1) {
                 totalBytes += read;
-                if (totalBytes > config.getMaxUncompressedBytes()) {
-                    throw new ArchiveException(
-                            "Uncompressed ZIP size exceeds configured limit: " + config.getMaxUncompressedBytes()
-                    );
+                if (totalBytes > config.getMaxSingleFileSize()) {
+                    outputStream.close();
+                    Files.deleteIfExists(targetPath);
+                    budget.skipIfOversized(entryName, totalBytes);
+                    drainStream(inputStream);
+                    return 0L;
                 }
+                budget.ensureAdditionalBytesAllowed(read);
                 outputStream.write(buffer, 0, read);
             }
         }
 
+        budget.recordExtractedFile(entryName, totalBytes);
         return totalBytes;
+    }
+
+    private static void drainStream(InputStream inputStream) throws IOException {
+        byte[] buffer = new byte[COPY_BUFFER_SIZE];
+        while (inputStream.read(buffer) != -1) {
+            // Discard remaining entry bytes.
+        }
     }
 }

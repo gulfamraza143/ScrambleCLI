@@ -5,6 +5,8 @@ import java.io.IOException;
 import java.io.InputStream;
 import java.io.InputStreamReader;
 import java.nio.charset.StandardCharsets;
+import java.util.ArrayList;
+import java.util.Comparator;
 import java.util.List;
 import java.util.regex.Pattern;
 
@@ -69,7 +71,9 @@ public final class CompanyDictionary {
      * @return compiled dictionary pattern
      */
     public Pattern compilePattern() {
-        String alternation = String.join("|", terms.stream().map(Pattern::quote).toList());
+        List<String> longestFirst = new ArrayList<>(terms);
+        longestFirst.sort(Comparator.comparingInt(String::length).reversed());
+        String alternation = String.join("|", longestFirst.stream().map(Pattern::quote).toList());
         return Pattern.compile("\\b(?i)(?:" + alternation + ")\\b");
     }
 }

@@ -17,10 +17,10 @@ class SupportedExtensionsTest {
             "pem, TEXT",
             "key, TEXT",
             "crt, TEXT",
-            "p12, TEXT",
+            "p12, SKIP",
             "csv, TEXT",
             "log, TEXT",
-            "md, SKIP",
+            "md, TEXT",
             "pdf, DOCUMENT",
             "png, IMAGE",
             "jar, SKIP",
@@ -32,6 +32,12 @@ class SupportedExtensionsTest {
     }
 
     @Test
+    void isTextExtensionIncludesMarkdown() {
+        assertEquals(FileCategory.TEXT, SupportedExtensions.categoryForExtension("md"));
+        assertEquals(FileCategory.TEXT, SupportedExtensions.categoryForExtension("MD"));
+    }
+
+    @Test
     void mapsNullExtensionToSkip() {
         assertEquals(FileCategory.SKIP, SupportedExtensions.categoryForExtension(null));
     }
@@ -39,5 +45,21 @@ class SupportedExtensionsTest {
     @Test
     void mapsEmptyExtensionToSkip() {
         assertEquals(FileCategory.SKIP, SupportedExtensions.categoryForExtension(""));
+    }
+
+    @Test
+    void p12IsNotTextExtension() {
+        assertEquals(FileCategory.SKIP, SupportedExtensions.categoryForExtension("p12"));
+        assertEquals(false, SupportedExtensions.isTextExtension("p12"));
+    }
+
+    @ParameterizedTest
+    @CsvSource({
+            "p12",
+            "P12"
+    })
+    void p12CaseInsensitiveClassification(String extension) {
+        assertEquals(FileCategory.SKIP, SupportedExtensions.categoryForExtension(extension));
+        assertEquals(false, SupportedExtensions.isTextExtension(extension));
     }
 }

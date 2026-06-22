@@ -32,7 +32,7 @@ class DetectionEngineTest {
         String content = """
                 admin_email: admin@icici.com
                 portal: https://internal.icici.com
-                bank: ICICI
+                broker: ICICI Securities
                 """;
 
         DetectionResult result = detectionEngine.detect(new DetectionContext(FILE_INFO, content));
@@ -40,7 +40,7 @@ class DetectionEngineTest {
         assertEquals(List.of("EMAIL", "URL", "COMPANY_BRAND"), entityTypeNames(result));
         assertEquals("admin@icici.com", result.getEntities().get(0).getOriginalValue());
         assertEquals("https://internal.icici.com", result.getEntities().get(1).getOriginalValue());
-        assertEquals("ICICI", result.getEntities().get(2).getOriginalValue());
+        assertEquals("ICICI Securities", result.getEntities().get(2).getOriginalValue());
     }
 
     @Test
@@ -59,7 +59,7 @@ class DetectionEngineTest {
 
     @Test
     void detectsConfiguredCompanyBrandTerms() {
-        String content = "teams: ICICIBANK ICICILABS FXTP WECARE SCRAMBLE";
+        String content = "broker: ICICI Securities platform: ICICI Direct app: iMobile wallet: Pockets card: ICICI Coral";
 
         DetectionResult result = detectionEngine.detect(new DetectionContext(FILE_INFO, content));
 
@@ -93,10 +93,10 @@ class DetectionEngineTest {
         CompanyDictionary dictionary = CompanyDictionary.defaults();
         DetectionEngine engine = new DetectionEngine(dictionary);
 
-        DetectionResult result = engine.detect(new DetectionContext(FILE_INFO, "partner: SCRAMBLE"));
+        DetectionResult result = engine.detect(new DetectionContext(FILE_INFO, "broker: ICICI Securities"));
 
         assertEquals(1, result.getEntities().size());
-        assertEquals("SCRAMBLE", result.getEntities().get(0).getOriginalValue());
+        assertEquals("ICICI Securities", result.getEntities().get(0).getOriginalValue());
     }
 
     @Test

@@ -1,0 +1,2 @@
+ICICI Securities=Orion Capital
+ICICI Direct=Orion Capital
