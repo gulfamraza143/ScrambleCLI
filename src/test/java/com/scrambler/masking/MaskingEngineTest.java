@@ -192,4 +192,71 @@ class MaskingEngineTest {
                 List.of(EntityType.GSTIN, EntityType.TAN, EntityType.CIN),
                 mappingRegistry.getRecords().stream().map(MappingRecord::getEntityType).toList());
     }
+
+    @Test
+    void masksInternalIdentifiersPreservingAssignmentSyntax() {
+        String content = """
+                employeeId=E123456
+                banId=BAN123456
+                ldapId=rajesh.singh
+                """;
+        DetectionResult detection = detectionEngine.detect(new DetectionContext(FILE_INFO, content));
+
+        String masked = maskingEngine.mask(content, detection, mappingRegistry);
+
+        assertTrue(masked.startsWith("employeeId="));
+        assertTrue(masked.contains("\nbanId="));
+        assertTrue(masked.contains("\nldapId="));
+        assertFalse(masked.contains("E123456"));
+        assertFalse(masked.contains("BAN123456"));
+        assertFalse(masked.contains("rajesh.singh"));
+        assertEquals(
+                List.of(EntityType.INTERNAL_IDENTIFIER, EntityType.INTERNAL_IDENTIFIER, EntityType.INTERNAL_IDENTIFIER),
+                mappingRegistry.getRecords().stream().map(MappingRecord::getEntityType).toList());
+    }
+
+    @Test
+    void masksWorkItemIdsWithFormatPreservation() {
+        String content = "ticket=INC0012345 story=ENG-1234";
+        DetectionResult detection = detectionEngine.detect(new DetectionContext(FILE_INFO, content));
+
+        String masked = maskingEngine.mask(content, detection, mappingRegistry);
+
+        assertFalse(masked.contains("INC0012345"));
+        assertFalse(masked.contains("ENG-1234"));
+        assertEquals(
+                List.of(EntityType.WORK_ITEM_ID, EntityType.WORK_ITEM_ID),
+                mappingRegistry.getRecords().stream().map(MappingRecord::getEntityType).toList());
+    }
+
+    @Test
+    void assignsSameMaskedValueForRepeatedInternalIdentifiers() {
+        String content = """
+                employeeId=E123456
+                empId=E123456
+                """;
+
+        DetectionResult detection = detectionEngine.detect(new DetectionContext(FILE_INFO, content));
+        maskingEngine.mask(content, detection, mappingRegistry);
+
+        assertEquals(2, mappingRegistry.getRecords().size());
+        assertEquals(
+                mappingRegistry.getRecords().get(0).getMaskedValue(),
+                mappingRegistry.getRecords().get(1).getMaskedValue());
+    }
+
+    @Test
+    void assignsDifferentMaskedValuesForDifferentInternalIdentifiers() {
+        String content = """
+                employeeId=E123456
+                banId=BAN123456
+                """;
+
+        DetectionResult detection = detectionEngine.detect(new DetectionContext(FILE_INFO, content));
+        maskingEngine.mask(content, detection, mappingRegistry);
+
+        assertEquals(2, mappingRegistry.getRecords().size());
+        assertFalse(mappingRegistry.getRecords().get(0).getMaskedValue()
+                .equals(mappingRegistry.getRecords().get(1).getMaskedValue()));
+    }
 }

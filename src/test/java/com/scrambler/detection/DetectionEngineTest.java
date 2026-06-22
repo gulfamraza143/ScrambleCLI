@@ -1,6 +1,7 @@
 package com.scrambler.detection;
 
 import com.scrambler.config.CompanyDictionary;
+import com.scrambler.config.JiraProjectKeys;
 import com.scrambler.inventory.FileInfo;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
@@ -443,6 +444,171 @@ class DetectionEngineTest {
         DetectionResult result = detectionEngine.detect(new DetectionContext(FILE_INFO, content));
 
         assertTrue(result.getEntities().stream().noneMatch(entity -> entity.getType() == EntityType.PAN));
+    }
+
+    @Test
+    void detectsInternalIdentifierAssignments() {
+        String content = """
+                employeeId=E123456
+                empId=EMP000987
+                staffNumber=778899
+                associateId=A102938
+                banId=BAN123456
+                ldapId=rajesh.singh
+                adId=employee01
+                contractorId=CTR88991
+                corpId=CORP99887
+                """;
+
+        DetectionResult result = detectionEngine.detect(new DetectionContext(FILE_INFO, content));
+
+        assertEquals(
+                List.of(
+                        "INTERNAL_IDENTIFIER",
+                        "INTERNAL_IDENTIFIER",
+                        "INTERNAL_IDENTIFIER",
+                        "INTERNAL_IDENTIFIER",
+                        "INTERNAL_IDENTIFIER",
+                        "INTERNAL_IDENTIFIER",
+                        "INTERNAL_IDENTIFIER",
+                        "INTERNAL_IDENTIFIER",
+                        "INTERNAL_IDENTIFIER"),
+                entityTypeNames(result));
+        assertEquals("E123456", result.getEntities().get(0).getOriginalValue());
+        assertEquals("EMP000987", result.getEntities().get(1).getOriginalValue());
+        assertEquals("778899", result.getEntities().get(2).getOriginalValue());
+        assertEquals("rajesh.singh", result.getEntities().get(5).getOriginalValue());
+        assertEquals("CORP99887", result.getEntities().get(8).getOriginalValue());
+        assertEquals(EntityDomain.PII, result.getEntities().get(0).getDomain());
+    }
+
+    @Test
+    void rejectsInternalIdentifierWithoutApprovedFieldLabel() {
+        String content = """
+                orderId=ORD123456
+                invoiceId=INV55555
+                transactionId=TXN123456
+                batchId=BATCH123
+                customerId=CUST123456
+                """;
+
+        DetectionResult result = detectionEngine.detect(new DetectionContext(FILE_INFO, content));
+
+        assertTrue(result.getEntities().stream().noneMatch(entity -> entity.getType() == EntityType.INTERNAL_IDENTIFIER));
+    }
+
+    @Test
+    void rejectsStandaloneInternalIdentifierValues() {
+        String content = """
+                E123456
+                BAN123456
+                778899
+                john123
+                employee01
+                rajesh.singh
+                """;
+
+        DetectionResult result = detectionEngine.detect(new DetectionContext(FILE_INFO, content));
+
+        assertTrue(result.getEntities().stream().noneMatch(entity -> entity.getType() == EntityType.INTERNAL_IDENTIFIER));
+    }
+
+    @Test
+    void detectsServiceNowWorkItemIds() {
+        String content = """
+                incident=INC0012345
+                change=CHG0098765
+                request=REQ0012345
+                ritm=RITM0012345
+                problem=PRB0001234
+                task=TASK0012345
+                """;
+
+        DetectionResult result = detectionEngine.detect(new DetectionContext(FILE_INFO, content));
+
+        assertEquals(
+                List.of(
+                        "WORK_ITEM_ID",
+                        "WORK_ITEM_ID",
+                        "WORK_ITEM_ID",
+                        "WORK_ITEM_ID",
+                        "WORK_ITEM_ID",
+                        "WORK_ITEM_ID"),
+                entityTypeNames(result));
+        assertEquals("INC0012345", result.getEntities().get(0).getOriginalValue());
+        assertEquals(EntityDomain.INFRASTRUCTURE, result.getEntities().get(0).getDomain());
+    }
+
+    @Test
+    void detectsJiraWorkItemIds() {
+        String content = """
+                story=ENG-1234
+                risk=RISK-5678
+                ops=OPS-9999
+                """;
+
+        DetectionResult result = detectionEngine.detect(new DetectionContext(FILE_INFO, content));
+
+        assertEquals(List.of("WORK_ITEM_ID", "WORK_ITEM_ID", "WORK_ITEM_ID"), entityTypeNames(result));
+        assertEquals("ENG-1234", result.getEntities().get(0).getOriginalValue());
+    }
+
+    @Test
+    void rejectsNonAllowlistedJiraWorkItemIds() {
+        String content = """
+                story=ABC-123
+                task=TEST-456
+                """;
+
+        DetectionResult result = detectionEngine.detect(new DetectionContext(FILE_INFO, content));
+
+        assertTrue(result.getEntities().stream().noneMatch(entity -> entity.getType() == EntityType.WORK_ITEM_ID));
+    }
+
+    @Test
+    void usesProvidedJiraProjectKeysAllowlist() {
+        JiraProjectKeys keys = JiraProjectKeys.loadFromResource("/jira-project-keys.txt");
+        DetectionEngine engine = new DetectionEngine(CompanyDictionary.defaults(), keys);
+
+        DetectionResult allowed = engine.detect(new DetectionContext(FILE_INFO, "story=ENG-1234"));
+        DetectionResult blocked = engine.detect(new DetectionContext(FILE_INFO, "story=TEST-456"));
+
+        assertEquals(1, allowed.getEntities().size());
+        assertEquals("WORK_ITEM_ID", allowed.getEntities().get(0).getType().name());
+        assertTrue(blocked.getEntities().isEmpty());
+    }
+
+    @Test
+    void rejectsGenericNumbersAsWorkItemIds() {
+        String content = """
+                count=1234567
+                total=99999999
+                """;
+
+        DetectionResult result = detectionEngine.detect(new DetectionContext(FILE_INFO, content));
+
+        assertTrue(result.getEntities().stream().noneMatch(entity -> entity.getType() == EntityType.WORK_ITEM_ID));
+    }
+
+    @Test
+    void preservesInternalIdentifierValueOffsets() {
+        String content = "employeeId=E123456";
+
+        Entity entity = detectionEngine.detect(new DetectionContext(FILE_INFO, content)).getEntities().get(0);
+
+        assertEquals("E123456", content.substring(entity.getStartOffset(), entity.getEndOffset()));
+        assertEquals("INTERNAL_IDENTIFIER", entity.getType().name());
+    }
+
+    @Test
+    void prefersInternalIdentifierAssignmentOverEmbeddedPhoneNumber() {
+        String content = "staffNumber=778899";
+
+        DetectionResult result = detectionEngine.detect(new DetectionContext(FILE_INFO, content));
+
+        assertEquals(1, result.getEntities().size());
+        assertEquals("INTERNAL_IDENTIFIER", result.getEntities().get(0).getType().name());
+        assertEquals("778899", result.getEntities().get(0).getOriginalValue());
     }
 
     private static List<String> entityTypeNames(DetectionResult result) {

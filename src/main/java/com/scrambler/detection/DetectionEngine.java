@@ -1,6 +1,7 @@
 package com.scrambler.detection;
 
 import com.scrambler.config.CompanyDictionary;
+import com.scrambler.config.JiraProjectKeys;
 
 import java.util.ArrayList;
 import java.util.Comparator;
@@ -33,6 +34,14 @@ public final class DetectionEngine {
             "(?im)(?:^[ \\t]*(?:[\\w.-]+\\.)*api[._-]key\\s*[:=]\\s*['\"]?|[\"']api[._-]key[\"']\\s*:\\s*[\"'])([^\\s#\"']{4,})");
     private static final Pattern SECRET_KEY_ASSIGNMENT_PATTERN = Pattern.compile(
             "(?im)(?:^[ \\t]*(?:[\\w.-]+\\.)*secret\\s*[:=]\\s*['\"]?|[\"']secret[\"']\\s*:\\s*[\"'])([^\\s#\"']{3,})");
+    private static final String INTERNAL_IDENTIFIER_LABELS =
+            "(?:employeeId|employee_id|empId|emp_id|staffId|staff_id|staffNumber|staff_number|"
+                    + "associateId|associate_id|banId|ban_id|ldapId|ldap_id|adId|ad_id|"
+                    + "contractorId|contractor_id|internalUserId|internal_user_id|corpId|corp_id|"
+                    + "corporateId|corporate_id)";
+    private static final Pattern INTERNAL_IDENTIFIER_ASSIGNMENT_PATTERN = Pattern.compile(
+            "(?im)(?:^[ \\t]*(?:[\\w.-]+\\.)*" + INTERNAL_IDENTIFIER_LABELS + "\\s*[:=]\\s*['\"]?|[\"']"
+                    + INTERNAL_IDENTIFIER_LABELS + "[\"']\\s*:\\s*[\"'])([^\\s#\"']+)");
     private static final Pattern JWT_PATTERN = Pattern.compile(
             "\\beyJ[A-Za-z0-9_-]{10,}\\.[A-Za-z0-9_-]{10,}\\.[A-Za-z0-9_-]{10,}\\b");
     private static final Pattern PRIVATE_KEY_BLOCK_PATTERN = Pattern.compile(
@@ -59,7 +68,7 @@ public final class DetectionEngine {
      * Creates a detection engine with the default Milestone 3 rule catalog.
      */
     public DetectionEngine() {
-        this(CompanyDictionary.defaults());
+        this(CompanyDictionary.defaults(), JiraProjectKeys.defaults());
     }
 
     /**
@@ -68,7 +77,17 @@ public final class DetectionEngine {
      * @param companyDictionary dictionary for company brand matching
      */
     public DetectionEngine(CompanyDictionary companyDictionary) {
-        this.rules = buildDefaultRules(companyDictionary);
+        this(companyDictionary, JiraProjectKeys.defaults());
+    }
+
+    /**
+     * Creates a detection engine using the provided dictionaries.
+     *
+     * @param companyDictionary dictionary for company brand matching
+     * @param jiraProjectKeys   allowlisted JIRA project keys for work item matching
+     */
+    public DetectionEngine(CompanyDictionary companyDictionary, JiraProjectKeys jiraProjectKeys) {
+        this.rules = buildDefaultRules(companyDictionary, jiraProjectKeys);
         this.priorities = indexPriorities(this.rules);
     }
 
@@ -141,7 +160,9 @@ public final class DetectionEngine {
         return indexed;
     }
 
-    private static List<DetectionRule> buildDefaultRules(CompanyDictionary companyDictionary) {
+    private static List<DetectionRule> buildDefaultRules(
+            CompanyDictionary companyDictionary,
+            JiraProjectKeys jiraProjectKeys) {
         List<DetectionRule> catalog = new ArrayList<>();
 
         catalog.add(new DetectionRule(
@@ -272,6 +293,20 @@ public final class DetectionEngine {
                 SECRET_KEY_ASSIGNMENT_PATTERN,
                 28,
                 1));
+
+        catalog.add(new DetectionRule(
+                EntityType.INTERNAL_IDENTIFIER,
+                EntityDomain.PII,
+                INTERNAL_IDENTIFIER_ASSIGNMENT_PATTERN,
+                27,
+                1,
+                DetectionValidators::isValidInternalIdentifier));
+
+        catalog.add(new DetectionRule(
+                EntityType.WORK_ITEM_ID,
+                EntityDomain.INFRASTRUCTURE,
+                jiraProjectKeys.compileWorkItemPattern(),
+                92)); // above IFSC (90) so RITM/TASK ServiceNow IDs are not misclassified
 
         return List.copyOf(catalog);
     }

@@ -85,6 +85,20 @@ final class DetectionValidators {
         return !sequence.equals("00000");
     }
 
+    static boolean isValidInternalIdentifier(String value) {
+        String trimmed = value.trim();
+        if (trimmed.length() < 3) {
+            return false;
+        }
+        if (trimmed.matches("\\d{5,}")) {
+            return true;
+        }
+        if (trimmed.matches("[a-zA-Z][a-zA-Z0-9]*\\.[a-zA-Z][a-zA-Z0-9]*")) {
+            return true;
+        }
+        return trimmed.matches("[A-Za-z]+\\d{2,}");
+    }
+
     static boolean isValidCin(String value) {
         String normalized = value.trim().toUpperCase();
         if (!normalized.matches("[UL]\\d{5}[A-Z]{2}\\d{4}[A-Z]{3}\\d{6}")) {

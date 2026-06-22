@@ -104,4 +104,21 @@ class DetectionValidatorsTest {
         assertFalse(DetectionValidators.isValidCin("L17110MH1973ZZZ019786"));
         assertFalse(DetectionValidators.isValidCin("L17110MH1973PLC01978"));
     }
+
+    @Test
+    void acceptsValidInternalIdentifierValues() {
+        assertTrue(DetectionValidators.isValidInternalIdentifier("E123456"));
+        assertTrue(DetectionValidators.isValidInternalIdentifier("EMP000987"));
+        assertTrue(DetectionValidators.isValidInternalIdentifier("778899"));
+        assertTrue(DetectionValidators.isValidInternalIdentifier("rajesh.singh"));
+        assertTrue(DetectionValidators.isValidInternalIdentifier("employee01"));
+    }
+
+    @Test
+    void rejectsInvalidInternalIdentifierValues() {
+        assertFalse(DetectionValidators.isValidInternalIdentifier("12"));
+        assertFalse(DetectionValidators.isValidInternalIdentifier("1234"));
+        assertFalse(DetectionValidators.isValidInternalIdentifier(""));
+        assertFalse(DetectionValidators.isValidInternalIdentifier("ab"));
+    }
 }

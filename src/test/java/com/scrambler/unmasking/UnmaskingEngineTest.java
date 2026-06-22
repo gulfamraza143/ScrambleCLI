@@ -143,6 +143,32 @@ class UnmaskingEngineTest {
     }
 
     @Test
+    void roundtripMaskThenUnmaskInternalIdentifiersAndWorkItems() throws Exception {
+        String original = """
+                employeeId=E123456
+                banId=BAN123456
+                ticket=INC0012345
+                story=ENG-1234
+                """;
+
+        DetectionEngine detectionEngine = new DetectionEngine();
+        MaskingEngine maskingEngine = new MaskingEngine();
+        MappingRegistry mappingRegistry = new MappingRegistry();
+
+        DetectionResult detection = detectionEngine.detect(new DetectionContext(FILE_INFO, original));
+        String masked = maskingEngine.mask(original, detection, mappingRegistry);
+
+        Path reportPath = writeReport(mappingRegistry);
+        MappingIndex index = MappingIndex.from(new MappingLoader().load(reportPath));
+        RestoreResult restoreResult = new RestoreResult();
+
+        String restored = unmaskingEngine.unmask(masked, index, restoreResult);
+
+        assertEquals(original, restored);
+        assertEquals(4, restoreResult.getTokensRestored());
+    }
+
+    @Test
     void preservesLineBreaksAndFileStructure() {
         MappingIndex index = MappingIndex.from(List.of(
                 record("config/application.yml", EntityType.EMAIL, "admin@icici.com", "SCRAMBLE_EMAIL_000001", 7, 22),

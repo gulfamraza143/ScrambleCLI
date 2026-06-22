@@ -18,6 +18,8 @@ public enum EntityType {
     PASSWORD(EntityDomain.SECRETS),
     API_KEY(EntityDomain.SECRETS),
     SECRET_KEY(EntityDomain.SECRETS),
+    INTERNAL_IDENTIFIER(EntityDomain.PII),
+    WORK_ITEM_ID(EntityDomain.INFRASTRUCTURE),
     JWT(EntityDomain.SECRETS),
     PRIVATE_KEY(EntityDomain.SECRETS),
 

@@ -1,0 +1,7 @@
+# Allowlisted JIRA project keys for WORK_ITEM_ID detection.
+# One key per line. Lines starting with # are comments.
+ENG
+RISK
+OPS
+SEC
+SCRAMBLE
