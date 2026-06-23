@@ -146,8 +146,6 @@ public final class MaskingApplication {
                 RepositoryMetadata.ensureNotAlreadyMasked(inputPath);
             }
 
-            printPipelineHeader();
-
             printStage(1, "Workspace Creation");
             workspace = workspaceManager.createWorkspace(config);
             printSuccess("Workspace Ready");
@@ -300,13 +298,6 @@ public final class MaskingApplication {
         printMetric("Files Scanned", pipelineFilesScanned);
         printMetric("Files Containing Entities", pipelineFilesWithEntities);
         printMetric("Total Entities Detected", pipelineEntitiesFound);
-    }
-
-    private static void printPipelineHeader() {
-        System.out.println("==================================================");
-        System.out.println("SCRAMBLE ENTERPRISE - FORMAT PRESERVING MASKING");
-        System.out.println("==================================================");
-        System.out.println();
     }
 
     private static void printStage(int step, String title) {
