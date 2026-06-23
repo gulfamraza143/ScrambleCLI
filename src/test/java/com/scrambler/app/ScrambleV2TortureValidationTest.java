@@ -3,7 +3,6 @@ package com.scrambler.app;
 import com.scrambler.config.ScramblerConfig;
 import com.scrambler.detection.EntityType;
 import com.scrambler.report.EntityReportRecord;
-import com.scrambler.report.ReportDigest;
 import com.scrambler.report.ReportSchema;
 import com.scrambler.report.XlsxReportReader;
 import org.junit.jupiter.api.Test;
@@ -40,7 +39,6 @@ class ScrambleV2TortureValidationTest {
     @Test
     void completeScrambleV2Validation(@TempDir Path tempDir) throws Exception {
         PrintStream out = System.out;
-        ByteArrayOutputStream tamperLog = new ByteArrayOutputStream();
         Map<String, Boolean> verdicts = new LinkedHashMap<>();
 
         out.println("=".repeat(72));
@@ -74,8 +72,8 @@ class ScrambleV2TortureValidationTest {
         Path tokenZip = findOutputZip(tempDir, "ICICI_CODE_BANK.zip");
         String repoToken = tokenZip.getFileName().toString().replace(".zip", "");
         List<String> maskedEntries = listZipEntries(tokenZip);
-        Path extractedReport = extractEntry(tokenZip, ReportSchema.REPORT_FILENAME, tempDir.resolve("masked-report.xlsx"));
-        List<EntityReportRecord> reportRows = new XlsxReportReader().read(extractedReport);
+        Path reportPath = tempDir.resolve(ReportSchema.REPORT_FILENAME);
+        List<EntityReportRecord> reportRows = new XlsxReportReader().read(reportPath);
 
         out.println("--- 1. REPOSITORY TOKENIZATION ---");
         out.println("Original repository name : ICICI_CODE_BANK");
@@ -170,50 +168,25 @@ class ScrambleV2TortureValidationTest {
         out.println("Verdict: " + (reportOk ? "PASS" : "FAIL"));
         out.println();
 
-        out.println("--- 6. EMBEDDED PACKAGING ---");
+        out.println("--- 6. SEPARATE OUTPUT ARTIFACTS ---");
         out.println("Actual ZIP structure:");
         maskedEntries.forEach(e -> out.println("  " + e));
-        boolean hasReport = maskedEntries.contains(ReportSchema.REPORT_FILENAME);
-        boolean hasDigest = maskedEntries.contains(ReportDigest.DIGEST_FILENAME);
+        boolean reportEmbedded = maskedEntries.contains(ReportSchema.REPORT_FILENAME);
+        boolean externalReport = Files.isRegularFile(tempDir.resolve(ReportSchema.REPORT_FILENAME));
         boolean hasMetadata = maskedEntries.contains(repoToken + "/.scramble_metadata");
-        boolean packagingOk = hasReport && hasDigest && hasMetadata
-                && !Files.isRegularFile(tempDir.resolve(ReportSchema.REPORT_FILENAME));
-        verdicts.put("Embedded packaging", packagingOk);
-        out.println("entity_report.xlsx inside ZIP : " + hasReport);
-        out.println("entity_report.sha256 inside ZIP: " + hasDigest);
+        boolean packagingOk = !reportEmbedded && externalReport && hasMetadata;
+        verdicts.put("Separate output artifacts", packagingOk);
+        out.println("entity_report.xlsx inside ZIP : " + reportEmbedded);
+        out.println("entity_report.xlsx on disk    : " + externalReport);
         out.println(".scramble_metadata inside repo : " + hasMetadata);
-        out.println("No external report files        : " + !Files.isRegularFile(tempDir.resolve(ReportSchema.REPORT_FILENAME)));
         out.println("Verdict: " + (packagingOk ? "PASS" : "FAIL"));
         out.println();
 
-        out.println("--- 7. SHA VERIFICATION ---");
-        Path tamperedZip = tempDir.resolve("tampered-" + tokenZip.getFileName());
-        Files.copy(tokenZip, tamperedZip);
-        Path tamperedReport = tempDir.resolve("tampered-report.xlsx");
-        extractEntry(tamperedZip, ReportSchema.REPORT_FILENAME, tamperedReport);
-        byte[] reportBytes = Files.readAllBytes(tamperedReport);
-        reportBytes[reportBytes.length / 2] ^= 0x01;
-        Files.write(tamperedReport, reportBytes);
-        replaceZipEntry(tamperedZip, ReportSchema.REPORT_FILENAME, reportBytes);
-
-        PrintStream originalErr = System.err;
-        System.setErr(new PrintStream(tamperLog));
-        int tamperExit = new UnmaskingApplication(config).run(new String[]{tamperedZip.toString()});
-        System.setErr(originalErr);
-
-        String tamperOutput = tamperLog.toString(StandardCharsets.UTF_8);
-        out.println("Tampered unmask exit code: " + tamperExit);
-        out.println("Tampered unmask log:");
-        out.println(tamperOutput.isBlank() ? "  Processing failed: Entity report digest mismatch — report may have been tampered with"
-                : tamperOutput.strip());
-        boolean shaOk = tamperExit == UnmaskingApplication.EXIT_PROCESSING_FAILURE
-                && !Files.exists(tempDir.resolve(UnmaskingApplication.OUTPUT_ARCHIVE_NAME));
-        verdicts.put("SHA verification", shaOk);
-        out.println("Verdict: " + (shaOk ? "PASS" : "FAIL"));
-        out.println();
-
-        out.println("--- 8. ROUND-TRIP RESTORATION ---");
-        int unmaskExit = new UnmaskingApplication(config).run(new String[]{tokenZip.toString()});
+        out.println("--- 7. ROUND-TRIP RESTORATION ---");
+        int unmaskExit = new UnmaskingApplication(config).run(new String[]{
+                tokenZip.toString(),
+                reportPath.toString()
+        });
         assertEquals(UnmaskingApplication.EXIT_SUCCESS, unmaskExit);
         Path restoredZip = tempDir.resolve(UnmaskingApplication.OUTPUT_ARCHIVE_NAME);
         Map<String, String> restoredFiles = readAllZipTextEntries(restoredZip);
@@ -256,7 +229,7 @@ class ScrambleV2TortureValidationTest {
         out.println("Verdict (round-trip): " + (roundTripOk ? "PASS" : "FAIL"));
         out.println();
 
-        out.println("--- 9. NESTED ARCHIVE HANDLING ---");
+        out.println("--- 8. NESTED ARCHIVE HANDLING ---");
         boolean nestedExpanded = maskedEntries.stream().noneMatch(e -> e.endsWith("nested.zip"));
         boolean nestedContentPresent = maskedEntries.stream()
                 .anyMatch(e -> e.contains("/nested/") && e.endsWith("/config.txt"));
@@ -268,7 +241,7 @@ class ScrambleV2TortureValidationTest {
         out.println();
 
         out.println("=".repeat(72));
-        out.println("10. FINAL VERDICT");
+        out.println("9. FINAL VERDICT");
         out.println("=".repeat(72));
         verdicts.forEach((name, pass) -> out.printf("  %-28s %s%n", name + ":", pass ? "PASS" : "FAIL"));
         out.println("=".repeat(72));
@@ -471,26 +444,5 @@ class ScrambleV2TortureValidationTest {
             }
         }
         throw new IOException("Entry not found: " + entryName);
-    }
-
-    private static void replaceZipEntry(Path zipPath, String entryName, byte[] content) throws IOException {
-        Map<String, byte[]> entries = new LinkedHashMap<>();
-        try (InputStream is = Files.newInputStream(zipPath);
-             ZipInputStream zis = new ZipInputStream(is)) {
-            ZipEntry entry;
-            while ((entry = zis.getNextEntry()) != null) {
-                if (!entry.isDirectory()) {
-                    entries.put(entry.getName(), zis.readAllBytes());
-                }
-            }
-        }
-        entries.put(entryName, content);
-        try (ZipOutputStream zos = new ZipOutputStream(Files.newOutputStream(zipPath))) {
-            for (Map.Entry<String, byte[]> entry : entries.entrySet()) {
-                zos.putNextEntry(new ZipEntry(entry.getKey()));
-                zos.write(entry.getValue());
-                zos.closeEntry();
-            }
-        }
     }
 }

@@ -16,7 +16,6 @@ import com.scrambler.masking.TokenFormatSpec;
 import com.scrambler.report.EntityReportRecord;
 import com.scrambler.report.TestReportWriter;
 import com.scrambler.report.XlsxReportWriter;
-import com.scrambler.report.ReportDigest;
 import com.scrambler.report.ReportSchema;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
@@ -36,7 +35,6 @@ import java.util.zip.ZipInputStream;
 import java.util.zip.ZipOutputStream;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
-import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertThrows;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
@@ -188,40 +186,6 @@ class RestoreCorrectnessTest {
     }
 
     @Test
-    void rejectsTamperedReportWhenDigestPresent(@TempDir Path tempDir) throws Exception {
-        Path reportPath = tempDir.resolve("tampered.csv");
-        writeReport(reportPath, List.of(
-                "a.txt,EMAIL,admin@icici.com," + TokenFormatSpec.format(EntityType.EMAIL, 1) + ",0,15"));
-        ReportDigest.write(reportPath, tempDir.resolve(ReportDigest.DIGEST_FILENAME));
-
-        Files.writeString(reportPath, Files.readString(reportPath).replace("admin@icici.com", "evil@icici.com"));
-
-        ReportException exception = assertThrows(
-                ReportException.class,
-                () -> ReportDigest.verify(reportPath, tempDir.resolve(ReportDigest.DIGEST_FILENAME)));
-        assertTrue(exception.getMessage().contains("digest mismatch"));
-    }
-
-    @Test
-    void unmaskFailsOnTamperedReportWithDigest(@TempDir Path tempDir) throws Exception {
-        String token = TokenFormatSpec.format(EntityType.EMAIL, 1);
-        Path maskedZip = tempDir.resolve("masked_repo.zip");
-        Path reportPath = tempDir.resolve("tampered.csv");
-        createZip(maskedZip, Map.of("a.txt", "email: " + token + "\n"));
-        writeReport(reportPath, List.of("a.txt,EMAIL,admin@icici.com," + token + ",7,22"));
-        ReportDigest.write(reportPath, tempDir.resolve(ReportDigest.DIGEST_FILENAME));
-        Files.writeString(reportPath, Files.readString(reportPath).replace("admin@icici.com", "evil@icici.com"));
-
-        int exitCode = new UnmaskingApplication(configFor(tempDir)).run(new String[]{
-                maskedZip.toString(),
-                reportPath.toString()
-        });
-
-        assertEquals(2, exitCode);
-        assertFalse(Files.exists(tempDir.resolve(UnmaskingApplication.OUTPUT_ARCHIVE_NAME)));
-    }
-
-    @Test
     void legacyReportStillRestoresWithLongestMatchFirst() throws Exception {
         MappingIndex index = MappingIndex.from(List.of(
                 record("db.properties", EntityType.DATABASE_URL,
@@ -299,7 +263,6 @@ class RestoreCorrectnessTest {
         Path reportPath = tempDir.resolve(ReportSchema.REPORT_FILENAME);
         createZip(maskedZip, maskedFiles);
         new XlsxReportWriter().write(mappingRegistry, reportPath);
-        ReportDigest.write(reportPath, tempDir.resolve(ReportDigest.DIGEST_FILENAME));
 
         int exitCode = new UnmaskingApplication(configFor(tempDir)).run(new String[]{
                 maskedZip.toString(),

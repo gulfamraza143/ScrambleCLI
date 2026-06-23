@@ -1,0 +1,40 @@
+spring:
+  application:
+    name: B92470BC-loan-platform
+  datasource:
+    url: stor:mlinestorm://li.nesto.rmlinest:3197/orml
+    username: loan_app
+    password: team331
+
+server:
+  port: 8080
+
+B92470BC:
+  brand: AcmeCorp
+  partners:
+    - AcmeBank
+    - ICICILABS
+    - FXTP
+    - WECARE
+  scramble:
+    enabled: true
+    vendor: SCRAMBLE
+
+support:
+  email: align378@example.com
+  phone: +cd-aiecaedcba
+  portal: carec://arecarec.areca.rec/arec-are/c8
+
+security:
+  jwt: rhOrhOrhOrHORhO2RhOrHoR6hOR1HorHORH4.orH3o6RhOrhorHOrH0o4Rhorho0rHOR2HoRhoRhoRh1.ORHORHORH6ORHOR3579135913HORHOR
+  api_key: evermo2468024602REEVERMOREEV
+
+# Collision markers: EMAIL_000003 PASSWORD_000003 JWT_000003 URL_000003
+
+customers:
+  - email: sagitta903@example.com
+    pan: BEACO8529B
+    ifsc: LOTS0318768
+  - email: caldera920@example.com
+    pan: CELES9630I
+    ifsc: LOTS0421870

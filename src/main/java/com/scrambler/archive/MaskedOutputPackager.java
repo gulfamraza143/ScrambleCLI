@@ -1,8 +1,6 @@
 package com.scrambler.archive;
 
 import com.scrambler.exception.ArchiveException;
-import com.scrambler.report.ReportDigest;
-import com.scrambler.report.ReportSchema;
 import com.scrambler.workspace.Workspace;
 import com.scrambler.workspace.WorkspaceManager;
 
@@ -20,7 +18,7 @@ import java.util.zip.ZipEntry;
 import java.util.zip.ZipOutputStream;
 
 /**
- * Packages a masked repository folder together with the entity report and digest into a self-contained ZIP.
+ * Packages a masked repository folder into a ZIP archive.
  */
 public final class MaskedOutputPackager {
 
@@ -39,37 +37,25 @@ public final class MaskedOutputPackager {
     }
 
     /**
-     * Creates a self-contained masked output archive.
+     * Creates a masked repository output archive.
      *
      * @param repositoryRoot   directory containing masked repository contents
      * @param repositoryFolder repository folder name inside the ZIP
-     * @param reportPath       path to {@link ReportSchema#REPORT_FILENAME}
-     * @param digestPath       path to {@link ReportDigest#DIGEST_FILENAME}
      * @param outputZip        final ZIP output path
      * @param workspace        active workspace used for atomic staging
      */
     public void create(
             Path repositoryRoot,
             String repositoryFolder,
-            Path reportPath,
-            Path digestPath,
             Path outputZip,
             Workspace workspace) {
         Objects.requireNonNull(repositoryRoot, "repositoryRoot must not be null");
         Objects.requireNonNull(repositoryFolder, "repositoryFolder must not be null");
-        Objects.requireNonNull(reportPath, "reportPath must not be null");
-        Objects.requireNonNull(digestPath, "digestPath must not be null");
         Objects.requireNonNull(outputZip, "outputZip must not be null");
         Objects.requireNonNull(workspace, "workspace must not be null");
 
         if (!Files.isDirectory(repositoryRoot)) {
             throw new ArchiveException("Repository root does not exist or is not a directory: " + repositoryRoot);
-        }
-        if (!Files.isRegularFile(reportPath)) {
-            throw new ArchiveException("Entity report is missing: " + reportPath);
-        }
-        if (!Files.isRegularFile(digestPath)) {
-            throw new ArchiveException("Entity report digest is missing: " + digestPath);
         }
 
         List<Path> repositoryFiles = collectRegularFiles(repositoryRoot);
@@ -79,7 +65,7 @@ public final class MaskedOutputPackager {
 
         Path stagingZip = workspace.getRootPath().resolve(STAGING_ZIP_NAME);
         try {
-            writeZip(repositoryRoot, repositoryFolder, reportPath, digestPath, stagingZip, repositoryFiles);
+            writeZip(repositoryRoot, repositoryFolder, stagingZip, repositoryFiles);
             Path parent = outputZip.toAbsolutePath().getParent();
             if (parent != null) {
                 Files.createDirectories(parent);
@@ -90,7 +76,7 @@ public final class MaskedOutputPackager {
             throw e;
         } catch (IOException e) {
             deleteQuietly(stagingZip);
-            throw new ArchiveException("Failed to create self-contained ZIP archive: " + outputZip, e);
+            throw new ArchiveException("Failed to create masked repository ZIP archive: " + outputZip, e);
         }
     }
 
@@ -107,8 +93,6 @@ public final class MaskedOutputPackager {
     private void writeZip(
             Path repositoryRoot,
             String repositoryFolder,
-            Path reportPath,
-            Path digestPath,
             Path stagingZip,
             List<Path> repositoryFiles) throws IOException {
         byte[] buffer = new byte[COPY_BUFFER_SIZE];
@@ -118,8 +102,6 @@ public final class MaskedOutputPackager {
                 String entryName = repositoryFolder + "/" + relativePath;
                 writeFileEntry(zipOutputStream, entryName, file, buffer);
             }
-            writeFileEntry(zipOutputStream, ReportSchema.REPORT_FILENAME, reportPath, buffer);
-            writeFileEntry(zipOutputStream, ReportDigest.DIGEST_FILENAME, digestPath, buffer);
         }
     }
 

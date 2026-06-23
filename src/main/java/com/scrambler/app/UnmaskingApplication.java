@@ -16,8 +16,6 @@ import com.scrambler.inventory.FileInfo;
 import com.scrambler.inventory.FileIterator;
 import com.scrambler.inventory.RepositoryInventory;
 import com.scrambler.report.EntityReportRecord;
-import com.scrambler.report.ReportDigest;
-import com.scrambler.report.ReportSchema;
 import com.scrambler.unmasking.MappingIndex;
 import com.scrambler.unmasking.MappingLoader;
 import com.scrambler.unmasking.PathRestorer;
@@ -28,14 +26,13 @@ import com.scrambler.unmasking.UnmaskingEngine;
 import com.scrambler.workspace.Workspace;
 import com.scrambler.workspace.WorkspaceManager;
 
-import java.nio.file.Files;
 import java.nio.file.Path;
 import java.nio.file.Paths;
 import java.util.List;
 
 /**
  * Entry point for the unmasking CLI.
- * Restores TEXT content and path names from a self-contained masked repository archive.
+ * Restores TEXT content and path names from a masked repository archive and entity report.
  */
 public final class UnmaskingApplication {
 
@@ -88,8 +85,7 @@ public final class UnmaskingApplication {
     /**
      * Application entry point.
      *
-     * @param args command-line arguments; expects a self-contained masked repository ZIP,
-     *             or legacy {@code <masked_code.zip> <entity_report.xlsx>}
+     * @param args command-line arguments; expects {@code <masked_code.zip> <entity_report.xlsx>}
      */
     public static void main(String[] args) {
         int exitCode = new UnmaskingApplication().run(args);
@@ -103,21 +99,19 @@ public final class UnmaskingApplication {
      * @return exit code per the architecture contract
      */
     public int run(String[] args) {
-        if (args == null || args.length == 0 || args.length > 2) {
+        if (args == null || args.length != 2) {
             printUsage();
             return EXIT_INVALID_USAGE;
         }
 
         Path maskedZipPath = Paths.get(args[0]);
-        Path externalReportPath = args.length == 2 ? Paths.get(args[1]) : null;
+        Path reportPath = Paths.get(args[1]);
         Path outputZipPath = resolveOutputPath(maskedZipPath);
 
         Workspace workspace = null;
         try {
             workspace = workspaceManager.createWorkspace(config);
             Path extractionRoot = archiveExtractor.extract(maskedZipPath, workspace);
-            Path reportPath = resolveReportPath(extractionRoot, externalReportPath);
-            verifyReportDigest(reportPath);
             List<EntityReportRecord> records = mappingLoader.load(reportPath);
             restoreValidator.validate(records);
             MappingIndex mappingIndex = MappingIndex.from(records);
@@ -173,28 +167,7 @@ public final class UnmaskingApplication {
     }
 
     private static void printUsage() {
-        System.err.println("Usage: java -jar scramble-unmask.jar <token.zip>");
-        System.err.println("   or: java -jar scramble-unmask.jar <masked_code.zip> <entity_report.xlsx>");
-    }
-
-    private static Path resolveReportPath(Path extractionRoot, Path externalReportPath) {
-        if (externalReportPath != null) {
-            return externalReportPath;
-        }
-
-        Path packagedReport = extractionRoot.resolve(ReportSchema.REPORT_FILENAME);
-        if (Files.isRegularFile(packagedReport)) {
-            return packagedReport;
-        }
-
-        throw new ReportException("Entity report not found inside archive: " + ReportSchema.REPORT_FILENAME);
-    }
-
-    private static void verifyReportDigest(Path reportPath) {
-        Path digestPath = reportPath.resolveSibling(ReportDigest.DIGEST_FILENAME);
-        if (Files.isRegularFile(digestPath)) {
-            ReportDigest.verify(reportPath, digestPath);
-        }
+        System.err.println("Usage: java -jar scramble-unmask.jar <token.zip> <entity_report.xlsx>");
     }
 
     private static Path resolveOutputPath(Path maskedZipPath) {

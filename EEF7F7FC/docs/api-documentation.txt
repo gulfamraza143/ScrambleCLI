@@ -1,0 +1,35 @@
+AcmeCorp Loan Platform API Documentation
+=======================================
+
+Base URL: carec://arecarec.areca.rec/arec-are/c8
+
+Authentication:
+  Header: Authorization: Bearer goLdeNgoLdENGoL2DeNgOlD6eNG1OldENGO4.ldE3n6GoLdengOLdE0n34Golden1gOLD3EnGolDenGo2.LDENGOLDE67NGOLD5791379135ENGOLD
+  Header: X-API-Key: abcdef1234567890SCRAMBLETEST
+
+Endpoints:
+  GET  /api/v1/loans/{loanNumber}
+  POST /api/v1/loans/apply
+  POST /api/v1/payments/emi
+
+Sample request body:
+{
+  "email": "align378@example.com",
+  "phone": "+cd-aiecaedcba",
+  "pan": "ABCDE1234F",
+  "aadhaar": "ffhibcdefghi",
+  "ifsc": "LOTS0766666",
+  "address": "42, Park Street, Kolkata, 700016",
+  "dob": "1985-07-15"
+}
+
+False positive section:
+  String password; — Java field declaration
+  class EmailService — class name
+  PHONE_VALIDATOR — constant name
+  URL_BUILDER — constant name
+
+Edge cases:
+  Email with comma in comment: contact agile009@example.com, backup platinum043@example.com
+  Quoted value: "email":"highlandview143@example.com"
+  Unicode customer: राजेश कुमार AcmeCorp customer

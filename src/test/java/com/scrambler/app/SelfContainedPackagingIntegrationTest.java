@@ -1,7 +1,6 @@
 package com.scrambler.app;
 
 import com.scrambler.config.ScramblerConfig;
-import com.scrambler.report.ReportDigest;
 import com.scrambler.report.ReportSchema;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.io.TempDir;
@@ -25,7 +24,7 @@ import static org.junit.jupiter.api.Assertions.assertTrue;
 class SelfContainedPackagingIntegrationTest {
 
     @Test
-    void maskingProducesSelfContainedTokenNamedZipWithoutExternalReport(@TempDir Path tempDir) throws Exception {
+    void maskingProducesSeparateZipAndExternalReport(@TempDir Path tempDir) throws Exception {
         Path originalZip = tempDir.resolve("ICICI_CODE_BANK.zip");
         createZip(originalZip, Map.of(
                 "ICICI_CODE_BANK/ICICI_Config/secrets.txt", "admin@icici.com\n",
@@ -37,21 +36,21 @@ class SelfContainedPackagingIntegrationTest {
 
         Path maskedZip = findMaskedZip(tempDir);
         String repoToken = maskedZip.getFileName().toString().replace(".zip", "");
+        Path reportPath = tempDir.resolve(ReportSchema.REPORT_FILENAME);
 
         assertTrue(repoToken.matches("[0-9A-F]{8}"));
-        assertFalse(Files.isRegularFile(tempDir.resolve(ReportSchema.REPORT_FILENAME)));
-        assertFalse(Files.isRegularFile(tempDir.resolve(ReportDigest.DIGEST_FILENAME)));
+        assertTrue(Files.isRegularFile(reportPath));
+        assertFalse(listZipEntries(maskedZip).contains(ReportSchema.REPORT_FILENAME));
+        assertFalse(listZipEntries(maskedZip).stream().anyMatch(entry -> entry.endsWith(".sha256")));
 
         List<String> entries = listZipEntries(maskedZip);
-        assertTrue(entries.contains(ReportSchema.REPORT_FILENAME));
-        assertTrue(entries.contains(ReportDigest.DIGEST_FILENAME));
         assertTrue(entries.contains(repoToken + "/.scramble_metadata"));
         assertTrue(entries.stream().anyMatch(entry -> entry.startsWith(repoToken + "/") && entry.endsWith("/secrets.txt")));
         assertFalse(entries.stream().anyMatch(entry -> entry.contains("ICICI")));
     }
 
     @Test
-    void singleArgumentUnmaskRestoresOriginalRepositoryFromEmbeddedReport(@TempDir Path tempDir) throws Exception {
+    void twoArgumentUnmaskRestoresOriginalRepository(@TempDir Path tempDir) throws Exception {
         Map<String, String> originalFiles = new LinkedHashMap<>();
         originalFiles.put("ICICI_CODE_BANK/ICICI_Config/secrets.txt", "admin@icici.com\n");
         originalFiles.put("ICICI_CODE_BANK/ICICI_CODE_BANK/ICICI_CODE_BANK.txt", "hello\n");
@@ -65,8 +64,10 @@ class SelfContainedPackagingIntegrationTest {
         }));
 
         Path maskedZip = findMaskedZip(tempDir);
+        Path reportPath = tempDir.resolve(ReportSchema.REPORT_FILENAME);
         assertEquals(UnmaskingApplication.EXIT_SUCCESS, new UnmaskingApplication(configFor(tempDir)).run(new String[]{
-                maskedZip.toString()
+                maskedZip.toString(),
+                reportPath.toString()
         }));
 
         Path restoredZip = tempDir.resolve(UnmaskingApplication.OUTPUT_ARCHIVE_NAME);
@@ -76,31 +77,7 @@ class SelfContainedPackagingIntegrationTest {
     }
 
     @Test
-    void legacyTwoArgumentUnmaskRemainsSupported(@TempDir Path tempDir) throws Exception {
-        Path originalZip = tempDir.resolve("ICICI_CODE_BANK.zip");
-        createZip(originalZip, Map.of(
-                "ICICI_CODE_BANK/app.txt", "admin@icici.com\n"));
-
-        assertEquals(MaskingApplication.EXIT_SUCCESS, new MaskingApplication(configFor(tempDir)).run(new String[]{
-                originalZip.toString()
-        }));
-
-        Path maskedZip = findMaskedZip(tempDir);
-        Path externalReport = tempDir.resolve("external-" + ReportSchema.REPORT_FILENAME);
-        extractZipEntry(maskedZip, ReportSchema.REPORT_FILENAME, externalReport);
-
-        assertEquals(UnmaskingApplication.EXIT_SUCCESS, new UnmaskingApplication(configFor(tempDir)).run(new String[]{
-                maskedZip.toString(),
-                externalReport.toString()
-        }));
-
-        assertEquals("admin@icici.com\n", readZipEntry(
-                tempDir.resolve(UnmaskingApplication.OUTPUT_ARCHIVE_NAME),
-                "ICICI_CODE_BANK/app.txt"));
-    }
-
-    @Test
-    void tamperedEmbeddedDigestAbortsSingleArgumentUnmask(@TempDir Path tempDir) throws Exception {
+    void singleArgumentUnmaskIsRejected(@TempDir Path tempDir) throws Exception {
         Path originalZip = tempDir.resolve("ICICI_CODE_BANK.zip");
         createZip(originalZip, Map.of("ICICI_CODE_BANK/app.txt", "admin@icici.com\n"));
 
@@ -109,15 +86,8 @@ class SelfContainedPackagingIntegrationTest {
         }));
 
         Path maskedZip = findMaskedZip(tempDir);
-        Path tamperedZip = tempDir.resolve("tampered.zip");
-        Files.copy(maskedZip, tamperedZip);
-
-        byte[] digestBytes = readZipEntryBytes(tamperedZip, ReportDigest.DIGEST_FILENAME);
-        digestBytes[digestBytes.length / 2] ^= 0x01;
-        replaceZipEntry(tamperedZip, ReportDigest.DIGEST_FILENAME, digestBytes);
-
-        assertEquals(UnmaskingApplication.EXIT_PROCESSING_FAILURE, new UnmaskingApplication(configFor(tempDir)).run(new String[]{
-                tamperedZip.toString()
+        assertEquals(UnmaskingApplication.EXIT_INVALID_USAGE, new UnmaskingApplication(configFor(tempDir)).run(new String[]{
+                maskedZip.toString()
         }));
         assertFalse(Files.exists(tempDir.resolve(UnmaskingApplication.OUTPUT_ARCHIVE_NAME)));
     }
@@ -131,8 +101,7 @@ class SelfContainedPackagingIntegrationTest {
     private static Path findMaskedZip(Path tempDir) throws IOException {
         try (var paths = Files.list(tempDir)) {
             return paths.filter(path -> path.getFileName().toString().endsWith(".zip")
-                            && !path.getFileName().toString().equals("ICICI_CODE_BANK.zip")
-                            && !path.getFileName().toString().equals("tampered.zip"))
+                            && !path.getFileName().toString().equals("ICICI_CODE_BANK.zip"))
                     .findFirst()
                     .orElseThrow(() -> new IOException("Masked output ZIP not found in " + tempDir));
         }
@@ -177,30 +146,5 @@ class SelfContainedPackagingIntegrationTest {
             }
         }
         throw new IOException("ZIP entry not found: " + entryName);
-    }
-
-    private static void extractZipEntry(Path zipPath, String entryName, Path destination) throws IOException {
-        Files.write(destination, readZipEntryBytes(zipPath, entryName));
-    }
-
-    private static void replaceZipEntry(Path zipPath, String entryName, byte[] content) throws IOException {
-        Map<String, byte[]> entries = new LinkedHashMap<>();
-        try (InputStream inputStream = Files.newInputStream(zipPath);
-             ZipInputStream zipInputStream = new ZipInputStream(inputStream)) {
-            ZipEntry entry;
-            while ((entry = zipInputStream.getNextEntry()) != null) {
-                if (!entry.isDirectory()) {
-                    entries.put(entry.getName(), zipInputStream.readAllBytes());
-                }
-            }
-        }
-        entries.put(entryName, content);
-        try (ZipOutputStream zipOutputStream = new ZipOutputStream(Files.newOutputStream(zipPath))) {
-            for (Map.Entry<String, byte[]> entry : entries.entrySet()) {
-                zipOutputStream.putNextEntry(new ZipEntry(entry.getKey()));
-                zipOutputStream.write(entry.getValue());
-                zipOutputStream.closeEntry();
-            }
-        }
     }
 }

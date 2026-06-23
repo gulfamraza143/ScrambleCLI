@@ -41,8 +41,8 @@ class SymbolicLinkMaskingIntegrationTest {
         assertEquals(MaskingApplication.EXIT_SUCCESS, exitCode);
 
         Path maskedZip = tempDir.resolve("repo.zip");
-        assertFalse(Files.isRegularFile(maskedZip.resolveSibling("entity_report.xlsx")));
-        assertTrue(zipContainsEntry(maskedZip, ReportSchema.REPORT_FILENAME));
+        assertTrue(Files.isRegularFile(tempDir.resolve("entity_report.xlsx")));
+        assertFalse(zipContainsEntry(maskedZip, ReportSchema.REPORT_FILENAME));
 
         assertFalse(zipContainsEntry(maskedZip, "repo/secret.txt"));
         String maskedJava = readZipEntry(maskedZip, "repo/App.java");

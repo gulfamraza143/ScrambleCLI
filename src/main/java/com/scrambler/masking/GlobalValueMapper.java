@@ -60,6 +60,15 @@ public final class GlobalValueMapper {
             return existing;
         }
 
+        if (entityType == EntityType.COMPANY_BRAND) {
+            String replacement = generator.generate(entityType, original, 0);
+            String sharedCaseVariant = findSharedCaseVariantMapping(original, replacement);
+            if (sharedCaseVariant != null) {
+                originalToMasked.put(original, sharedCaseVariant);
+                return sharedCaseVariant;
+            }
+        }
+
         for (int attempt = 0; attempt < MAX_COLLISION_ATTEMPTS; attempt++) {
             String candidate = generateCandidate(entityType, original, attempt);
             String mappedOriginal = maskedToOriginal.get(candidate);
@@ -98,6 +107,15 @@ public final class GlobalValueMapper {
     private void register(String original, String masked) {
         originalToMasked.put(original, masked);
         maskedToOriginal.put(masked, original);
+    }
+
+    private String findSharedCaseVariantMapping(String original, String replacement) {
+        for (Map.Entry<String, String> entry : originalToMasked.entrySet()) {
+            if (entry.getKey().equalsIgnoreCase(original) && entry.getValue().equals(replacement)) {
+                return entry.getValue();
+            }
+        }
+        return null;
     }
 
     private String generateCandidate(EntityType entityType, String original, int attempt) {

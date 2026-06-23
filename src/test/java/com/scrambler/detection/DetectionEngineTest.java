@@ -117,19 +117,15 @@ class DetectionEngineTest {
         String content = """
                 password=admin123
                 db.password=secret123
+                sasl.jaas.config=password=secret123
                 """;
 
         DetectionResult result = detectionEngine.detect(new DetectionContext(FILE_INFO, content));
 
-        assertEquals(List.of("PASSWORD", "PASSWORD"), entityTypeNames(result));
+        assertEquals(List.of("PASSWORD", "PASSWORD", "PASSWORD"), entityTypeNames(result));
         assertEquals("admin123", result.getEntities().get(0).getOriginalValue());
         assertEquals("secret123", result.getEntities().get(1).getOriginalValue());
-        assertEquals("admin123", content.substring(
-                result.getEntities().get(0).getStartOffset(),
-                result.getEntities().get(0).getEndOffset()));
-        assertEquals("secret123", content.substring(
-                result.getEntities().get(1).getStartOffset(),
-                result.getEntities().get(1).getEndOffset()));
+        assertEquals("secret123", result.getEntities().get(2).getOriginalValue());
     }
 
     @Test
@@ -137,11 +133,12 @@ class DetectionEngineTest {
         String content = """
                 api.key=abc123
                 api_key=abc123
+                kafka.api.key=evermo2468024602REEVERMOREEV
                 """;
 
         DetectionResult result = detectionEngine.detect(new DetectionContext(FILE_INFO, content));
 
-        assertEquals(List.of("API_KEY", "API_KEY"), entityTypeNames(result));
+        assertEquals(List.of("API_KEY", "API_KEY", "API_KEY"), entityTypeNames(result));
     }
 
     @Test

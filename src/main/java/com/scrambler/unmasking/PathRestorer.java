@@ -3,7 +3,6 @@ package com.scrambler.unmasking;
 import com.scrambler.detection.EntityType;
 import com.scrambler.exception.FileProcessingException;
 import com.scrambler.report.EntityReportRecord;
-import com.scrambler.report.ReportSchema;
 import com.scrambler.security.SymbolicLinkGuard;
 
 import java.io.IOException;
@@ -73,15 +72,6 @@ public final class PathRestorer {
             Path tokenRoot = extractionRoot.resolve(repositoryToken);
             if (Files.isDirectory(tokenRoot)) {
                 return tokenRoot;
-            }
-        }
-
-        if (Files.isRegularFile(extractionRoot.resolve(ReportSchema.REPORT_FILENAME))) {
-            try (Stream<Path> children = Files.list(extractionRoot)) {
-                List<Path> directories = children.filter(Files::isDirectory).toList();
-                if (directories.size() == 1) {
-                    return directories.get(0);
-                }
             }
         }
 

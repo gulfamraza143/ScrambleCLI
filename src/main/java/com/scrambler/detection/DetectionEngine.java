@@ -25,15 +25,26 @@ public final class DetectionEngine {
     private static final Pattern IFSC_PATTERN = Pattern.compile(
             "\\b[A-Z]{4}0[A-Z0-9]{6}\\b", Pattern.CASE_INSENSITIVE);
     private static final Pattern URL_PATTERN = Pattern.compile(
-            "https?://[^\\s<>\"']+");
+            "[a-z][a-z0-9+.-]*://[^\\s<>\"']+");
+    private static final String ASSIGNMENT_PREFIX = "[\\w.-]*";
+    private static final String ASSIGNMENT_VALUE = "([^\\s#\"';]{3,})";
     private static final Pattern IP_ADDRESS_PATTERN = Pattern.compile(
             "\\b(?:(?:25[0-5]|2[0-4]\\d|[01]?\\d\\d?)\\.){3}(?:25[0-5]|2[0-4]\\d|[01]?\\d\\d?)\\b");
     private static final Pattern PASSWORD_ASSIGNMENT_PATTERN = Pattern.compile(
-            "(?im)(?:^[ \\t]*(?:[\\w.-]+\\.)*password\\s*[:=]\\s*['\"]?|[\"']password[\"']\\s*:\\s*[\"'])([^\\s#\"']{4,})");
+            "(?im)(?:^[ \\t]*" + ASSIGNMENT_PREFIX + "password\\s*[:=]\\s*['\"]?"
+                    + "|[\"']password[\"']\\s*:\\s*[\"']"
+                    + "|(?<=[=])" + ASSIGNMENT_PREFIX + "password\\s*[:=]\\s*['\"]?)"
+                    + "([^\\s#\"';]{4,})");
     private static final Pattern API_KEY_ASSIGNMENT_PATTERN = Pattern.compile(
-            "(?im)(?:^[ \\t]*(?:[\\w.-]+\\.)*api[._-]key\\s*[:=]\\s*['\"]?|[\"']api[._-]key[\"']\\s*:\\s*[\"'])([^\\s#\"']{4,})");
+            "(?im)(?:^[ \\t]*" + ASSIGNMENT_PREFIX + "api[._-]key\\s*[:=]\\s*['\"]?"
+                    + "|[\"']api[._-]key[\"']\\s*:\\s*[\"']"
+                    + "|(?<=[=])" + ASSIGNMENT_PREFIX + "api[._-]key\\s*[:=]\\s*['\"]?)"
+                    + ASSIGNMENT_VALUE);
     private static final Pattern SECRET_KEY_ASSIGNMENT_PATTERN = Pattern.compile(
-            "(?im)(?:^[ \\t]*(?:[\\w.-]+\\.)*secret\\s*[:=]\\s*['\"]?|[\"']secret[\"']\\s*:\\s*[\"'])([^\\s#\"']{3,})");
+            "(?im)(?:^[ \\t]*" + ASSIGNMENT_PREFIX + "secret\\s*[:=]\\s*['\"]?"
+                    + "|[\"']secret[\"']\\s*:\\s*[\"']"
+                    + "|(?<=[=])" + ASSIGNMENT_PREFIX + "secret\\s*[:=]\\s*['\"]?)"
+                    + ASSIGNMENT_VALUE);
     private static final String INTERNAL_IDENTIFIER_LABELS =
             "(?:employeeId|employee_id|empId|emp_id|staffId|staff_id|staffNumber|staff_number|"
                     + "associateId|associate_id|banId|ban_id|ldapId|ldap_id|adId|ad_id|"

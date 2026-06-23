@@ -1,0 +1,118 @@
+{
+  "bank": "AcmeCorp",
+  "partners": [
+    "AcmeBank",
+    "ICICILABS",
+    "FXTP",
+    "WECARE",
+    "SCRAMBLE"
+  ],
+  "customers": [
+    {
+      "email": "imperial786@example.com",
+      "phone": "+gh-ecaigahg`e",
+      "pan": "ABCDE1234F",
+      "ifsc": "LOTS0865443"
+    },
+    {
+      "email": "venture353@example.com",
+      "phone": "+`i-fdb`hbahag",
+      "pan": "BCDEF1001G",
+      "ifsc": "LOTS0643220"
+    },
+    {
+      "email": "comfort634@example.com",
+      "phone": "+ab-gecaicbabi",
+      "pan": "BEACO8529B",
+      "ifsc": "LOTS0287667"
+    },
+    {
+      "email": "satisfaction354@example.com",
+      "phone": "+bc-`fdb`dcbea",
+      "pan": "CELES9630I",
+      "ifsc": "LOTS0318779"
+    },
+    {
+      "email": "vesper975@example.com",
+      "phone": "+cd-aiecaedcfe",
+      "pan": "EXCEL6307P",
+      "ifsc": "LOTS0976558"
+    },
+    {
+      "email": "talent573@example.com",
+      "phone": "+de-b`hdbfedgg",
+      "pan": "FGHIJ1005K",
+      "ifsc": "LOTS0766666"
+    },
+    {
+      "email": "grove397@example.com",
+      "phone": "+ef-caigcgfehi",
+      "pan": "VALLE4185Z",
+      "ifsc": "LOTS0754323"
+    },
+    {
+      "email": "forge832@example.com",
+      "phone": "+fg-db`hfhgfia",
+      "pan": "HIJKL1007M",
+      "ifsc": "LOTS0318768"
+    },
+    {
+      "email": "pine933@example.com",
+      "phone": "+gh-ecaigahg`c",
+      "pan": "DENAL8529J",
+      "ifsc": "LOTS0421870"
+    },
+    {
+      "email": "altairline327@example.com",
+      "phone": "+`i-fdb`hbahae",
+      "pan": "JKLMN1009O",
+      "ifsc": "LOTS0287659"
+    }
+  ],
+  "duplicates": {
+    "email": "align378@example.com",
+    "pan": "ABCDE1234F",
+    "ifsc": "LOTS0766666",
+    "url": "carec://arecarec.areca.rec/arec-are/c8",
+    "api_key": "evermo2468024602REEVERMOREEV",
+    "jwt": "haLcyOniXhALCyO2NiXhAlC6yON1IxhALCY4.onI3x6HaLcyonIXhA0lCyonix7hALC1YoNixHalCy8.ONIXHALCYONIXH9357913571ALCYON"
+  },
+  "secrets": {
+    "password": "aerio791",
+    "db_password": "root123",
+    "api_key": "evermo2468024602REEVERMOREEV"
+  },
+  "infra": {
+    "portal": "carec://arecarec.areca.rec/arec-are/c8",
+    "internal_ip": "31.96.73.58",
+    "jdbc": "stor:mlinestorm://li.nesto.rmlinest:3197/orml"
+  },
+  "edge_cases": {
+    "unicode": "\u0928\u092e\u0938\u094d\u0924\u0947 AcmeCorp",
+    "comma_separated": "beryl903@example.com, resonance003@example.com",
+    "quoted": "\"dorado396@example.com\"",
+    "multiline": "line1\\nline2\\t{EMAIL_DUP}"
+  },
+  "collision_markers": [
+    "EMAIL_000001",
+    "EMAIL_000002",
+    "EMAIL_000003",
+    "EMAIL_000004",
+    "EMAIL_000005",
+    "EMAIL_000006",
+    "EMAIL_000007",
+    "EMAIL_000008",
+    "EMAIL_000009",
+    "EMAIL_000010",
+    "EMAIL_000011",
+    "EMAIL_000012",
+    "EMAIL_000013",
+    "EMAIL_000014",
+    "EMAIL_000015",
+    "EMAIL_000016",
+    "EMAIL_000017",
+    "EMAIL_000018",
+    "EMAIL_000019",
+    "EMAIL_000020"
+  ]
+}

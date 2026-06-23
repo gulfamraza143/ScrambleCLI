@@ -21,7 +21,6 @@ import com.scrambler.masking.MappingRegistry;
 import com.scrambler.masking.MaskingEngine;
 import com.scrambler.path.PathTokenizationResult;
 import com.scrambler.path.PathTokenizer;
-import com.scrambler.report.ReportDigest;
 import com.scrambler.report.ReportSchema;
 import com.scrambler.report.XlsxReportWriter;
 import com.scrambler.inventory.FileInfo;
@@ -49,8 +48,8 @@ import java.util.List;
  * Workspace Creation → Archive Extraction → Nested Archive Expansion → Path Tokenization → Inventory →
  * Classification → Detection → Format-Preserving Masking → Placeholder Replacement → Report Generation → Re-Zipping
  *
- * <p>Output: a self-contained ZIP named after the repository token (when sensitive) containing the masked
- * repository folder, {@link ReportSchema#REPORT_FILENAME}, and {@link ReportDigest#DIGEST_FILENAME}.
+ * <p>Output: a token-named ZIP containing the masked repository folder and a separate
+ * {@link ReportSchema#REPORT_FILENAME} written beside the input archive.
  */
 public final class MaskingApplication {
 
@@ -204,24 +203,19 @@ public final class MaskingApplication {
             System.out.println();
 
             printStage(10, "Output Generation");
-            Path reportPath = workspace.getRootPath().resolve(ReportSchema.REPORT_FILENAME);
+            Path outputDirectory = resolveOutputDirectory(inputPath);
+            Path reportPath = outputDirectory.resolve(ReportSchema.REPORT_FILENAME);
             xlsxReportWriter.write(mappingRegistry, reportPath);
             printSuccess(ReportSchema.REPORT_FILENAME);
-            Path digestPath = workspace.getRootPath().resolve(ReportDigest.DIGEST_FILENAME);
-            ReportDigest.write(reportPath, digestPath);
-            printSuccess(ReportDigest.DIGEST_FILENAME);
             RepositoryMetadata.writeMarker(pathTokenization.repositoryRoot());
-            Path maskedZipPath = resolveMaskedZipPath(inputPath, pathTokenization.outputZipName());
+            Path maskedZipPath = outputDirectory.resolve(pathTokenization.outputZipName());
             maskedOutputPackager.create(
                     pathTokenization.repositoryRoot(),
                     pathTokenization.repositoryFolder(),
-                    reportPath,
-                    digestPath,
                     maskedZipPath,
                     workspace);
             printSuccess(pathTokenization.outputZipName());
-            printDetail(ReportSchema.REPORT_FILENAME, maskedZipPath + " (inside archive)");
-            printDetail(ReportDigest.DIGEST_FILENAME, maskedZipPath + " (inside archive)");
+            printDetail(ReportSchema.REPORT_FILENAME, reportPath.toAbsolutePath().normalize());
             printDetail("Output Archive", maskedZipPath);
             System.out.println();
 
@@ -374,12 +368,12 @@ public final class MaskingApplication {
         System.err.println("Usage: java -jar scramble-mask.jar <repo.zip|folder>");
     }
 
-    private static Path resolveMaskedZipPath(Path inputPath, String outputZipName) {
+    private static Path resolveOutputDirectory(Path inputPath) {
         Path outputDirectory = inputPath.toAbsolutePath().getParent();
         if (outputDirectory == null) {
             outputDirectory = Paths.get(".");
         }
-        return outputDirectory.resolve(outputZipName);
+        return outputDirectory;
     }
 
     private record MaskedFileResult(String repoRelativePath, String maskedContent) {

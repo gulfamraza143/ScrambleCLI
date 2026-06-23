@@ -38,7 +38,7 @@ class BrandReplacementDictionaryTest {
     void loadsBrandReplacementFile() {
         BrandReplacementDictionary dictionary = BrandReplacementDictionary.loadFromResource("/brand-replacements.txt");
 
-        assertEquals(26, dictionary.getMappingsLongestFirst().size());
+        assertEquals(28, dictionary.getMappingsLongestFirst().size());
         assertEquals("Orion Capital", dictionary.replace("ICICI Securities"));
         assertEquals("Falcon Markets", dictionary.replace("ICICIDirect"));
     }
@@ -47,7 +47,7 @@ class BrandReplacementDictionaryTest {
     void defaultsValidatesCoverageAgainstCompanyDictionary() {
         BrandReplacementDictionary dictionary = BrandReplacementDictionary.defaults();
 
-        assertEquals(26, dictionary.getMappingsLongestFirst().size());
+        assertEquals(28, dictionary.getMappingsLongestFirst().size());
         dictionary.validateUniqueReplacements();
     }
 
@@ -58,7 +58,7 @@ class BrandReplacementDictionaryTest {
                 .map(BrandReplacementDictionary.BrandMapping::replacement)
                 .collect(Collectors.toSet());
 
-        assertEquals(26, replacements.size());
+        assertEquals(28, replacements.size());
     }
 
     @Test
@@ -79,7 +79,7 @@ class BrandReplacementDictionaryTest {
                 IllegalStateException.class,
                 () -> dictionary.validateCoverage(companyDictionary));
 
-        assertEquals("Missing replacement mapping for COMPANY_BRAND: ICICI Direct", error.getMessage());
+        assertEquals("Missing replacement mapping for COMPANY_BRAND: ICICI", error.getMessage());
     }
 
     @Test

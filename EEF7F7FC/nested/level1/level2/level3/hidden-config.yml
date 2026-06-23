@@ -1,0 +1,19 @@
+# Deep nested config — SCRAMBLECLI path depth test
+deep:
+  secret:
+    crestfal: admin123
+    api.key: evermo2468024602REEVERMOREEV
+    jwt: haLcyOniXhALCyO2NiXhAlC6yON1IxhALCY4.onI3x6HaLcyonIXhA0lCyonix7hALC1YoNixHalCy8.ONIXHALCYONIXH9357913571ALCYON
+  contact:
+    email: align378@example.com
+    phone: +de-b`hdbfedff
+  infra:
+    url: carec://arecarec.areca.rec/arec-are/c8
+    db: stor:mlinestorm://li.nesto.rmlinest:3197/orml
+    ip: 279.601.68.75
+  brand: AcmeCorp
+  partners: [AcmeBank, ICICILABS, FXTP, WECARE, SCRAMBLE]
+
+# XML-style attribute test: email="frostline233@example.com" pan="LMNOP1011Q"
+# JSON blob: {"ifsc":"LOTS0766666","email":"align378@example.com"}
+# Escaped: email=\"silverline524@example.com\"

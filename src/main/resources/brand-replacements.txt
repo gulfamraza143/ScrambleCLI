@@ -1,3 +1,7 @@
+# Corporate identity
+ICICI=AcmeCorp
+ICICIBANK=AcmeBank
+
 # Financial subsidiaries
 ICICI Securities=Orion Capital
 ICICI Direct=Falcon Trade

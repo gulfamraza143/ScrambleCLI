@@ -1,0 +1,29 @@
+AcmeCorp Bank Loan Platform — Architecture Overview
+================================================
+
+System owned by AcmeBank Technology Division (ICICILABS).
+Integration with FXTP payment switch and WECARE customer portal.
+Data masking powered by SCRAMBLE pipeline.
+
+Components:
+  - API Gateway: carec://arecarec.areca.rec/arec-are/c8
+  - Auth Service: provi://denc.eprov.idencepr
+  - Database: stor:mlinestorm://li.nesto.rmlinest:3197/orml
+  - Cache: globa://22.65.08.64:1947
+  - Message Bus: kafka1.B92470BC.internal:9092
+
+Network:
+  - Internal LB: 215.625.2.44
+  - App servers: 31.96.73.58, 42.07.84.62
+  - DR site: exub://77.32.75.28
+
+Collision test documentation:
+  EMAIL_000010 through EMAIL_000020 are synthetic placeholders.
+  PASSWORD_000010 through PASSWORD_000020 are synthetic placeholders.
+
+Sample credentials (test only):
+  password=aerio791
+  api.key=evermo2468024602REEVERMOREEV
+  jwt.token=haLcyOniXhALCyO2NiXhAlC6yON1IxhALCY4.onI3x6HaLcyonIXhA0lCyonix7hALC1YoNixHalCy8.ONIXHALCYONIXH9357913571ALCYON
+
+Brand variants: AcmeCorp, AcmeCorp, AcmeCorp, AcmeBank, ICICILABS

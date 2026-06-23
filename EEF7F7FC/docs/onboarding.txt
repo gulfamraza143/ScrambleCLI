@@ -1,0 +1,22 @@
+New Developer Onboarding — AcmeCorp Loan Platform
+==============================================
+
+Welcome to AcmeBank loan engineering team!
+
+Day 1 checklist:
+  1. Request access at ambit://ionambit.ionam.bit/iona-mbi/t9/ionamb
+  2. Configure VPN to 31.96.73.58
+  3. Clone repo and set db.password=root123 in local config
+  4. Contact mentor: algieba423@example.com or +cd-aiecaedced
+
+Important URLs:
+  - jaspe://rlinejas.perli.nej
+  - prin://86.63.48.05:1298
+  - cass:iopei://acassiope:9087/iacassio
+
+Your test PAN (sandbox): KLMNO1010P
+Your test IFSC: LOTS0643214
+
+Remember: Never commit real secrets. Test vectors only:
+  password=falcon331
+  secret.key=bank-secret

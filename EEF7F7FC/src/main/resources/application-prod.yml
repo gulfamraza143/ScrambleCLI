@@ -1,0 +1,19 @@
+spring:
+  profiles: prod
+  datasource:
+    url: path:finder:path:@//finder.pathf.inderpat:8175/hfin
+    password: falcon331
+
+prod:
+  portal: jaspe://rlinejas.perli.nej
+  backup_host: 279.601.28.15
+  replica: meri:tmeritmeri://tmeritm.eritm.eritmeri:2086/tmer_it
+  support: align378@example.com
+  ifsc_default: LOTS0766666
+  pan_sample: ABCDE1234F
+  jwt: viGorVigOrVIGoR6ViGoRvI0gOR7VigORVI0.goR7v0IgOrvigORvI6g0Orvigo4rVIG8OrVigOrvIg5.ORVIGORVI2GORVI7915791357GORVIG
+  secret.key: prod-bank-secret-key-001
+
+B92470BC:
+  brand: AcmeCorp
+  division: AcmeBank

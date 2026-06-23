@@ -1,0 +1,98 @@
+Duplicate Entity Test File
+==========================
+
+Same email x10:
+align378@example.com
+align378@example.com
+align378@example.com
+align378@example.com
+align378@example.com
+align378@example.com
+align378@example.com
+align378@example.com
+align378@example.com
+align378@example.com
+
+Same PAN x10:
+ABCDE1234F
+ABCDE1234F
+ABCDE1234F
+ABCDE1234F
+ABCDE1234F
+ABCDE1234F
+ABCDE1234F
+ABCDE1234F
+ABCDE1234F
+ABCDE1234F
+
+Same IFSC x10:
+LOTS0766666
+LOTS0766666
+LOTS0766666
+LOTS0766666
+LOTS0766666
+LOTS0766666
+LOTS0766666
+LOTS0766666
+LOTS0766666
+LOTS0766666
+
+Same URL x10:
+carec://arecarec.areca.rec/arec-are/c8
+carec://arecarec.areca.rec/arec-are/c8
+carec://arecarec.areca.rec/arec-are/c8
+carec://arecarec.areca.rec/arec-are/c8
+carec://arecarec.areca.rec/arec-are/c8
+carec://arecarec.areca.rec/arec-are/c8
+carec://arecarec.areca.rec/arec-are/c8
+carec://arecarec.areca.rec/arec-are/c8
+carec://arecarec.areca.rec/arec-are/c8
+carec://arecarec.areca.rec/arec-are/c8
+
+Same API key x10:
+api.key=evermo2468024602REEVERMOREEV
+api.key=evermo2468024602REEVERMOREEV
+api.key=evermo2468024602REEVERMOREEV
+api.key=evermo2468024602REEVERMOREEV
+api.key=evermo2468024602REEVERMOREEV
+api.key=evermo2468024602REEVERMOREEV
+api.key=evermo2468024602REEVERMOREEV
+api.key=evermo2468024602REEVERMOREEV
+api.key=evermo2468024602REEVERMOREEV
+api.key=evermo2468024602REEVERMOREEV
+
+Same JWT x10:
+haLcyOniXhALCyO2NiXhAlC6yON1IxhALCY4.onI3x6HaLcyonIXhA0lCyonix7hALC1YoNixHalCy8.ONIXHALCYONIXH9357913571ALCYON
+haLcyOniXhALCyO2NiXhAlC6yON1IxhALCY4.onI3x6HaLcyonIXhA0lCyonix7hALC1YoNixHalCy8.ONIXHALCYONIXH9357913571ALCYON
+haLcyOniXhALCyO2NiXhAlC6yON1IxhALCY4.onI3x6HaLcyonIXhA0lCyonix7hALC1YoNixHalCy8.ONIXHALCYONIXH9357913571ALCYON
+haLcyOniXhALCyO2NiXhAlC6yON1IxhALCY4.onI3x6HaLcyonIXhA0lCyonix7hALC1YoNixHalCy8.ONIXHALCYONIXH9357913571ALCYON
+haLcyOniXhALCyO2NiXhAlC6yON1IxhALCY4.onI3x6HaLcyonIXhA0lCyonix7hALC1YoNixHalCy8.ONIXHALCYONIXH9357913571ALCYON
+haLcyOniXhALCyO2NiXhAlC6yON1IxhALCY4.onI3x6HaLcyonIXhA0lCyonix7hALC1YoNixHalCy8.ONIXHALCYONIXH9357913571ALCYON
+haLcyOniXhALCyO2NiXhAlC6yON1IxhALCY4.onI3x6HaLcyonIXhA0lCyonix7hALC1YoNixHalCy8.ONIXHALCYONIXH9357913571ALCYON
+haLcyOniXhALCyO2NiXhAlC6yON1IxhALCY4.onI3x6HaLcyonIXhA0lCyonix7hALC1YoNixHalCy8.ONIXHALCYONIXH9357913571ALCYON
+haLcyOniXhALCyO2NiXhAlC6yON1IxhALCY4.onI3x6HaLcyonIXhA0lCyonix7hALC1YoNixHalCy8.ONIXHALCYONIXH9357913571ALCYON
+haLcyOniXhALCyO2NiXhAlC6yON1IxhALCY4.onI3x6HaLcyonIXhA0lCyonix7hALC1YoNixHalCy8.ONIXHALCYONIXH9357913571ALCYON
+
+Additional unique emails:
+imperial786@example.com
+venture353@example.com
+comfort634@example.com
+satisfaction354@example.com
+vesper975@example.com
+talent573@example.com
+grove397@example.com
+forge832@example.com
+pine933@example.com
+altairline327@example.com
+
+Additional phones:
++gh-ecaigahg`e
++`i-fdb`hbahag
++ab-gecaicbabi
++bc-`fdb`dcbea
++cd-aiecaedcfe
++de-b`hdbfedgg
++ef-caigcgfehi
++fg-db`hfhgfia
++gh-ecaigahg`c
++`i-fdb`hbahae

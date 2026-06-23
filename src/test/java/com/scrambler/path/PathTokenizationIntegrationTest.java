@@ -3,7 +3,6 @@ package com.scrambler.path;
 import com.scrambler.config.ScramblerConfig;
 import com.scrambler.detection.EntityType;
 import com.scrambler.masking.MappingRegistry;
-import com.scrambler.report.ReportDigest;
 import com.scrambler.report.ReportSchema;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.io.TempDir;
@@ -39,9 +38,9 @@ class PathTokenizationIntegrationTest {
         assertEquals(0, exitCode);
 
         Path outputZip = findSingleZipOutput(tempDir, "ICICI_CODE_BANK.zip");
-        assertFalse(Files.isRegularFile(tempDir.resolve(ReportSchema.REPORT_FILENAME)));
-        assertTrue(zipContainsEntry(outputZip, ReportSchema.REPORT_FILENAME));
-        assertTrue(zipContainsEntry(outputZip, ReportDigest.DIGEST_FILENAME));
+        assertTrue(Files.isRegularFile(tempDir.resolve(ReportSchema.REPORT_FILENAME)));
+        assertFalse(zipContainsEntry(outputZip, ReportSchema.REPORT_FILENAME));
+        assertFalse(listZipEntries(outputZip).stream().anyMatch(entry -> entry.endsWith(".sha256")));
 
         String repoFolder = outputZip.getFileName().toString().replace(".zip", "");
         assertTrue(repoFolder.matches("[0-9A-F]{8}"));
@@ -118,7 +117,8 @@ class PathTokenizationIntegrationTest {
         Path maskedZip = findSingleZipOutput(tempDir, "ICICI_CODE_BANK.zip");
 
         int exitCode = new com.scrambler.app.UnmaskingApplication(configFor(tempDir)).run(new String[]{
-                maskedZip.toString()
+                maskedZip.toString(),
+                tempDir.resolve(ReportSchema.REPORT_FILENAME).toString()
         });
         assertEquals(0, exitCode);
 

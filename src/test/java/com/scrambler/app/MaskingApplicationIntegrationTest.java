@@ -45,8 +45,8 @@ class MaskingApplicationIntegrationTest {
         assertEquals(MaskingApplication.EXIT_SUCCESS, exitCode);
         Path maskedZip = tempDir.resolve("repo.zip");
         assertTrue(Files.isRegularFile(maskedZip));
-        assertTrue(zipContainsEntry(maskedZip, ReportSchema.REPORT_FILENAME));
-        assertFalse(Files.isRegularFile(tempDir.resolve(ReportSchema.REPORT_FILENAME)));
+        assertFalse(zipContainsEntry(maskedZip, ReportSchema.REPORT_FILENAME));
+        assertTrue(Files.isRegularFile(tempDir.resolve(ReportSchema.REPORT_FILENAME)));
 
         String maskedProperties = readZipEntry(maskedZip, "repo/config/app.properties");
         assertFalse(maskedProperties.contains("admin@icici.com"));

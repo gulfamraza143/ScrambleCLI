@@ -245,8 +245,12 @@ class UnmaskingApplicationIntegrationTest {
 
     @Test
     void rejectsInvalidUsage(@TempDir Path tempDir) {
-        int exitCode = new UnmaskingApplication(configFor(tempDir)).run(new String[]{});
-        assertEquals(UnmaskingApplication.EXIT_INVALID_USAGE, exitCode);
+        assertEquals(UnmaskingApplication.EXIT_INVALID_USAGE,
+                new UnmaskingApplication(configFor(tempDir)).run(new String[]{}));
+        assertEquals(UnmaskingApplication.EXIT_INVALID_USAGE,
+                new UnmaskingApplication(configFor(tempDir)).run(new String[]{"masked.zip"}));
+        assertEquals(UnmaskingApplication.EXIT_INVALID_USAGE,
+                new UnmaskingApplication(configFor(tempDir)).run(new String[]{"a.zip", "report.xlsx", "extra"}));
     }
 
     private static ScramblerConfig configFor(Path workspaceBase) {

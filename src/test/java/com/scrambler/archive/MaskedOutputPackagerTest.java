@@ -4,7 +4,6 @@ import com.scrambler.config.ScramblerConfig;
 import com.scrambler.detection.EntityType;
 import com.scrambler.masking.MappingRecord;
 import com.scrambler.masking.MappingRegistry;
-import com.scrambler.report.ReportDigest;
 import com.scrambler.report.ReportSchema;
 import com.scrambler.report.XlsxReportWriter;
 import com.scrambler.workspace.Workspace;
@@ -23,24 +22,17 @@ import java.util.zip.ZipEntry;
 import java.util.zip.ZipInputStream;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
-import static org.junit.jupiter.api.Assertions.assertTrue;
+import static org.junit.jupiter.api.Assertions.assertFalse;
 
 class MaskedOutputPackagerTest {
 
     @Test
-    void createsSelfContainedZipWithRepositoryReportAndDigest(@TempDir Path tempDir) throws Exception {
+    void createsZipWithRepositoryOnly(@TempDir Path tempDir) throws Exception {
         Path repositoryRoot = tempDir.resolve("A81D9F22");
         Path nestedFile = repositoryRoot.resolve("nested/app.txt");
         Files.createDirectories(nestedFile.getParent());
         Files.writeString(nestedFile, "masked content\n");
         Files.writeString(repositoryRoot.resolve(".scramble_metadata"), "masked\n");
-
-        MappingRegistry registry = new MappingRegistry();
-        registry.register(new MappingRecord(".", EntityType.REPOSITORY_NAME, "ICICI_CODE_BANK", "A81D9F22", 0, 0));
-        Path reportPath = tempDir.resolve(ReportSchema.REPORT_FILENAME);
-        Path digestPath = tempDir.resolve(ReportDigest.DIGEST_FILENAME);
-        new XlsxReportWriter().write(registry, reportPath);
-        ReportDigest.write(reportPath, digestPath);
 
         WorkspaceManager workspaceManager = new WorkspaceManager();
         Workspace workspace = workspaceManager.createWorkspace(ScramblerConfig.builder()
@@ -52,8 +44,6 @@ class MaskedOutputPackagerTest {
             new MaskedOutputPackager(workspaceManager).create(
                     repositoryRoot,
                     "A81D9F22",
-                    reportPath,
-                    digestPath,
                     outputZip,
                     workspace);
         } finally {
@@ -63,9 +53,8 @@ class MaskedOutputPackagerTest {
         List<String> entries = listZipEntries(outputZip);
         assertEquals(List.of(
                 "A81D9F22/.scramble_metadata",
-                "A81D9F22/nested/app.txt",
-                ReportSchema.REPORT_FILENAME,
-                ReportDigest.DIGEST_FILENAME), entries);
+                "A81D9F22/nested/app.txt"), entries);
+        assertFalse(entries.contains(ReportSchema.REPORT_FILENAME));
         assertEquals("masked content\n", readZipEntry(outputZip, "A81D9F22/nested/app.txt"));
     }
 

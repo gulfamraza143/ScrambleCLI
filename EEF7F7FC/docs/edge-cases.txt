@@ -1,0 +1,86 @@
+SCRAMBLECLI Edge Case Test Vectors
+===================================
+
+Comma-separated values:
+  emails: align378@example.com, sympathy112@example.com, crestline231@example.com
+  phones: +cd-aiecaedcba, +de-b`hdbfedcc, +ef-caigcgfede
+
+Quoted strings:
+  "email": "providence630@example.com"
+  'phone': '+fg-db`hfhgfeg'
+  pan="EXCEL6307P"
+
+Unicode and mixed scripts:
+  Customer: राजेश कumar Sharma (AcmeCorp Mumbai)
+  Japanese test: テストユーザー email=solenoid252@example.com
+  Emoji marker: ✅ verified align378@example.com
+
+Newlines and tabs (escaped in properties style):
+  line1\nline2\unity848@example.com
+  multiline_address=Flat 12\nMG Road\nMumbai\t400001
+
+JSON blob:
+{
+  "customer_id": "CIF00001234",
+  "email": "align378@example.com",
+  "phone": "+ab-gecaicbahc",
+  "pan": "ABCDE1234F",
+  "ifsc": "LOTS0766666",
+  "upi_id": "rajesh.sharma@B92470BC",
+  "bank_account": "cegiaceiaceg",
+  "credit_card": "7567892345678923",
+  "debit_card": "7845678123456785",
+  "loan_number": "LN2024001",
+  "account_number": "giiiiiiiiaaa",
+  "transaction_id": "TXN-AcmeCorp-fehahgch-deg",
+  "policy_number": "POL-HL-2024-001",
+  "swift_code": "ICICINBBXXX",
+  "merchant_id": "MERCH-LOAN-001"
+}
+
+XML attributes:
+<customer email="analytic991@example.com" phone="+bc-`fdb`dcbae" pan="VALLE4185Z" ifsc="LOTS0766666"/>
+<loan loan_number="LN2024002" account_number="789245679014"/>
+
+YAML block:
+payment:
+  merchant_id: MERCH-AcmeCorp-001
+  swift: ICICINBBXXX
+  notify_email: tucana210@example.com
+
+Properties edge cases:
+db.url=stor:mlinestorm://li.nesto.rmlinest:3197/orml
+host=31.96.73.58
+password=aerio791
+api.key=evermo2468024602REEVERMOREEV
+
+Collision placeholders (pre-mask):
+  EMAIL_000015 PASSWORD_000015 JWT_000015 URL_000015
+  EMAIL_000016 PASSWORD_000016 JWT_000016 URL_000016
+  EMAIL_000017 PASSWORD_000017 JWT_000017 URL_000017
+  EMAIL_000018 PASSWORD_000018 JWT_000018 URL_000018
+  EMAIL_000019 PASSWORD_000019 JWT_000019 URL_000019
+  EMAIL_000020 PASSWORD_000020 JWT_000020 URL_000020
+
+False positives (must NOT detect as secrets):
+  String password;
+  String secret;
+  String apiKey;
+  class EmailService
+  PHONE_VALIDATOR
+  URL_BUILDER
+
+Financial cross-references:
+  LOAN_NUMBER=LN2024001 references ACCOUNT_NUMBER=cegiaceiaceg
+  TRANSACTION_ID=TXN-001 references MERCHANT_ID=MERCH-001
+  POLICY_NUMBER=POL-2024-001 references SWIFT_CODE=ICICINBBXXX
+
+SPII repeated across files:
+  UPI: customer001@B92470BC, rajesh@B92470BC, align378@example.com
+  CIF: CIF00001234, CIF00005678
+  BANK_ACCOUNT: cegiaceiaceg, giiiiiiiiaaa
+
+-----ORBIT ALORBIT ALO-----
+RBITaLORBITALorbitaL1o8RBITALORBITalorBiTaLORbITALOrbitaLorbItal
+5555533333ORBITA5555533333LORBIT5555533333ALORBI5555533333TALORB
+-----ITA LORBITA LOR-----

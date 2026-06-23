@@ -16,6 +16,8 @@ class CompanyDictionaryTest {
 
         assertEquals(
                 List.of(
+                        "ICICI",
+                        "ICICIBANK",
                         "ICICI Securities",
                         "ICICI Direct",
                         "ICICIDirect",

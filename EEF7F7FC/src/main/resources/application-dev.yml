@@ -1,0 +1,20 @@
+spring:
+  profiles: dev
+  datasource:
+    url: cass:iopei://acassiope:9087/iacassio
+    password: aerio791
+
+logging:
+  level:
+    com.B92470BC: DEBUG
+
+dev:
+  admin_email: thames141@example.com
+  test_phone: +bc-`fdb`dcbbf
+  internal_url: amar://88.43.86.21
+  hostname: dev-loan.B92470BC.internal
+  jwt: foUndAtiOnFOUnD8AtIoNfO2uND9AtiONFO2.unD9a4TiOnfouNDaT8i1Onfoun6dATI0OnFouNdaTi7.ONFOUNDAT5IONFO9357913571UNDATI
+  api.key: anc-hor-anchor79
+
+# Unicode edge: नमस्ते AcmeCorp — customer name test
+# Tab-separated: email\arno770@example.com\tphone\t+`c-bbbbbhabdc
