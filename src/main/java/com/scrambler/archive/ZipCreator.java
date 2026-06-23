@@ -46,6 +46,23 @@ public final class ZipCreator {
      * @throws ArchiveException when packing fails or the source tree is empty
      */
     public void create(Path sourceDirectory, Path outputZip, Workspace workspace) {
+        create(sourceDirectory, "", outputZip, workspace);
+    }
+
+    /**
+     * Packages the extracted repository tree into a ZIP archive with an optional entry prefix.
+     *
+     * @param sourceDirectory root directory containing repository files
+     * @param entryPrefix     optional prefix applied to every ZIP entry (without trailing slash)
+     * @param outputZip       final ZIP output path; existing files are overwritten
+     * @param workspace       active workspace used for atomic staging
+     */
+    public void create(Path sourceDirectory, String entryPrefix, Path outputZip, Workspace workspace) {
+        Objects.requireNonNull(entryPrefix, "entryPrefix must not be null");
+        createInternal(sourceDirectory, entryPrefix, outputZip, workspace);
+    }
+
+    private void createInternal(Path sourceDirectory, String entryPrefix, Path outputZip, Workspace workspace) {
         Objects.requireNonNull(sourceDirectory, "sourceDirectory must not be null");
         Objects.requireNonNull(outputZip, "outputZip must not be null");
         Objects.requireNonNull(workspace, "workspace must not be null");
@@ -61,7 +78,7 @@ public final class ZipCreator {
 
         Path stagingZip = workspace.getRootPath().resolve(STAGING_ZIP_NAME);
         try {
-            writeZip(sourceDirectory, stagingZip, files);
+            writeZip(sourceDirectory, entryPrefix, stagingZip, files);
             Path parent = outputZip.toAbsolutePath().getParent();
             if (parent != null) {
                 Files.createDirectories(parent);
@@ -86,11 +103,12 @@ public final class ZipCreator {
         }
     }
 
-    private void writeZip(Path sourceDirectory, Path stagingZip, List<Path> files) {
+    private void writeZip(Path sourceDirectory, String entryPrefix, Path stagingZip, List<Path> files) {
         try (ZipOutputStream zipOutputStream = new ZipOutputStream(Files.newOutputStream(stagingZip))) {
             byte[] buffer = new byte[COPY_BUFFER_SIZE];
             for (Path file : files) {
-                String entryName = workspaceManager.toRepoRelativePath(sourceDirectory, file);
+                String relativePath = workspaceManager.toRepoRelativePath(sourceDirectory, file);
+                String entryName = entryPrefix.isBlank() ? relativePath : entryPrefix + "/" + relativePath;
                 ZipEntry entry = new ZipEntry(entryName);
                 zipOutputStream.putNextEntry(entry);
                 try (InputStream inputStream = Files.newInputStream(file)) {

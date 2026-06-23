@@ -1,6 +1,7 @@
 package com.scrambler.app;
 
 import com.scrambler.config.ScramblerConfig;
+import com.scrambler.report.ReportSchema;
 import org.apache.commons.compress.archivers.zip.ZipArchiveEntry;
 import org.apache.commons.compress.archivers.zip.ZipArchiveOutputStream;
 import org.junit.jupiter.api.Test;
@@ -39,14 +40,13 @@ class SymbolicLinkMaskingIntegrationTest {
 
         assertEquals(MaskingApplication.EXIT_SUCCESS, exitCode);
 
-        Path maskedZip = tempDir.resolve(MaskingApplication.OUTPUT_ARCHIVE_NAME);
-        assertTrue(Files.isRegularFile(maskedZip));
-        assertTrue(Files.isRegularFile(maskedZip.resolveSibling("entity_report.xlsx")));
+        Path maskedZip = tempDir.resolve("repo.zip");
+        assertFalse(Files.isRegularFile(maskedZip.resolveSibling("entity_report.xlsx")));
+        assertTrue(zipContainsEntry(maskedZip, ReportSchema.REPORT_FILENAME));
 
-        assertFalse(zipContainsEntry(maskedZip, "secret.txt"));
-        String maskedJava = readZipEntry(maskedZip, "App.java");
+        assertFalse(zipContainsEntry(maskedZip, "repo/secret.txt"));
+        String maskedJava = readZipEntry(maskedZip, "repo/App.java");
         assertFalse(maskedJava.contains("SENSITIVE-SYMLINK-TARGET-MUST-NOT-APPEAR"));
-        assertTrue(Files.isRegularFile(maskedZip.getParent().resolve("entity_report.xlsx")));
     }
 
     @Test
@@ -63,9 +63,9 @@ class SymbolicLinkMaskingIntegrationTest {
 
         assertEquals(MaskingApplication.EXIT_SUCCESS, exitCode);
 
-        Path maskedZip = tempDir.resolve(MaskingApplication.OUTPUT_ARCHIVE_NAME);
-        assertFalse(zipContainsEntry(maskedZip, "secret.txt"));
-        assertTrue(zipContainsEntry(maskedZip, "App.java"));
+        Path maskedZip = tempDir.resolve("repo.zip");
+        assertFalse(zipContainsEntry(maskedZip, "repo/secret.txt"));
+        assertTrue(zipContainsEntry(maskedZip, "repo/App.java"));
     }
 
     private static ScramblerConfig configFor(Path workspaceBase) {

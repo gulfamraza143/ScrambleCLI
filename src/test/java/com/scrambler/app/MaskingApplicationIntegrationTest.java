@@ -43,15 +43,15 @@ class MaskingApplicationIntegrationTest {
         int exitCode = new MaskingApplication(configFor(tempDir)).run(new String[]{repoZip.toString()});
 
         assertEquals(MaskingApplication.EXIT_SUCCESS, exitCode);
-        Path maskedZip = tempDir.resolve(MaskingApplication.OUTPUT_ARCHIVE_NAME);
-        Path reportPath = tempDir.resolve(ReportSchema.REPORT_FILENAME);
+        Path maskedZip = tempDir.resolve("repo.zip");
         assertTrue(Files.isRegularFile(maskedZip));
-        assertTrue(Files.isRegularFile(reportPath));
+        assertTrue(zipContainsEntry(maskedZip, ReportSchema.REPORT_FILENAME));
+        assertFalse(Files.isRegularFile(tempDir.resolve(ReportSchema.REPORT_FILENAME)));
 
-        String maskedProperties = readZipEntry(maskedZip, "config/app.properties");
+        String maskedProperties = readZipEntry(maskedZip, "repo/config/app.properties");
         assertFalse(maskedProperties.contains("admin@icici.com"));
 
-        String maskedReadme = readZipEntry(maskedZip, "README.md");
+        String maskedReadme = readZipEntry(maskedZip, "repo/README.md");
         assertFalse(maskedReadme.contains("admin@bank.com"));
         assertFalse(maskedReadme.contains("https://internal.icici.com"));
         assertFalse(maskedReadme.contains("hunter2"));
@@ -76,6 +76,19 @@ class MaskingApplicationIntegrationTest {
                 zipOutputStream.closeEntry();
             }
         }
+    }
+
+    private static boolean zipContainsEntry(Path zipPath, String entryName) throws IOException {
+        try (InputStream inputStream = Files.newInputStream(zipPath);
+             ZipInputStream zipInputStream = new ZipInputStream(inputStream)) {
+            ZipEntry entry;
+            while ((entry = zipInputStream.getNextEntry()) != null) {
+                if (entry.getName().equals(entryName)) {
+                    return true;
+                }
+            }
+        }
+        return false;
     }
 
     private static String readZipEntry(Path zipPath, String entryName) throws IOException {

@@ -28,7 +28,11 @@ public enum EntityType {
     DATABASE_URL(EntityDomain.INFRASTRUCTURE),
 
     COMPANY_BRAND(EntityDomain.COMPANY),
-    CIN(EntityDomain.COMPANY);
+    CIN(EntityDomain.COMPANY),
+
+    REPOSITORY_NAME(EntityDomain.COMPANY),
+    FOLDER_NAME(EntityDomain.COMPANY),
+    FILE_NAME(EntityDomain.COMPANY);
 
     private final EntityDomain domain;
 

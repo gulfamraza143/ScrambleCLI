@@ -17,6 +17,7 @@ public final class GlobalValueMapper {
     private static final int MAX_COLLISION_ATTEMPTS = 10_000;
 
     private final FormatPreservingGenerator generator;
+    private final OpaqueTokenGenerator opaqueTokenGenerator;
     private final Map<String, String> originalToMasked;
     private final Map<String, String> maskedToOriginal;
 
@@ -24,7 +25,7 @@ public final class GlobalValueMapper {
      * Creates a global value mapper with the default format-preserving generator.
      */
     public GlobalValueMapper() {
-        this(new FormatPreservingGenerator());
+        this(new FormatPreservingGenerator(), new OpaqueTokenGenerator());
     }
 
     /**
@@ -33,7 +34,12 @@ public final class GlobalValueMapper {
      * @param generator format-preserving value generator
      */
     GlobalValueMapper(FormatPreservingGenerator generator) {
+        this(generator, new OpaqueTokenGenerator());
+    }
+
+    GlobalValueMapper(FormatPreservingGenerator generator, OpaqueTokenGenerator opaqueTokenGenerator) {
         this.generator = Objects.requireNonNull(generator, "generator must not be null");
+        this.opaqueTokenGenerator = Objects.requireNonNull(opaqueTokenGenerator, "opaqueTokenGenerator must not be null");
         this.originalToMasked = new HashMap<>();
         this.maskedToOriginal = new HashMap<>();
     }
@@ -55,7 +61,7 @@ public final class GlobalValueMapper {
         }
 
         for (int attempt = 0; attempt < MAX_COLLISION_ATTEMPTS; attempt++) {
-            String candidate = generator.generate(entityType, original, attempt);
+            String candidate = generateCandidate(entityType, original, attempt);
             String mappedOriginal = maskedToOriginal.get(candidate);
             if (mappedOriginal == null) {
                 register(original, candidate);
@@ -92,5 +98,27 @@ public final class GlobalValueMapper {
     private void register(String original, String masked) {
         originalToMasked.put(original, masked);
         maskedToOriginal.put(masked, original);
+    }
+
+    private String generateCandidate(EntityType entityType, String original, int attempt) {
+        return switch (entityType) {
+            case REPOSITORY_NAME, FOLDER_NAME -> opaqueTokenGenerator.generate(attempt);
+            case FILE_NAME -> generateMaskedFileName(original, attempt);
+            default -> generator.generate(entityType, original, attempt);
+        };
+    }
+
+    private String generateMaskedFileName(String original, int attempt) {
+        int lastDot = original.lastIndexOf('.');
+        if (lastDot > 0 && lastDot < original.length() - 1) {
+            String basename = original.substring(0, lastDot);
+            String extension = original.substring(lastDot);
+            String existingBasenameToken = originalToMasked.get(basename);
+            if (existingBasenameToken != null) {
+                return existingBasenameToken + extension;
+            }
+            return opaqueTokenGenerator.generate(attempt) + extension;
+        }
+        return opaqueTokenGenerator.generate(attempt);
     }
 }

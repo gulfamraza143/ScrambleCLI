@@ -1,8 +1,8 @@
 package com.scrambler.app;
 
 import com.scrambler.archive.ArchiveExtractor;
+import com.scrambler.archive.MaskedOutputPackager;
 import com.scrambler.archive.NestedArchiveProcessor;
-import com.scrambler.archive.ZipCreator;
 import com.scrambler.classify.ClassificationResult;
 import com.scrambler.classify.FileCategory;
 import com.scrambler.classify.FileClassifier;
@@ -19,6 +19,8 @@ import com.scrambler.file.TextFileReader;
 import com.scrambler.file.TextFileWriter;
 import com.scrambler.masking.MappingRegistry;
 import com.scrambler.masking.MaskingEngine;
+import com.scrambler.path.PathTokenizationResult;
+import com.scrambler.path.PathTokenizer;
 import com.scrambler.report.ReportDigest;
 import com.scrambler.report.ReportSchema;
 import com.scrambler.report.XlsxReportWriter;
@@ -44,34 +46,29 @@ import java.util.List;
  * <p>Input: repository archive ({@code .zip}, {@code .tar}, {@code .tgz}, {@code .7z}) or folder.
  *
  * <p>Processing stages:
- * Workspace Creation → Archive Extraction → Nested Archive Expansion → Inventory → Classification →
- * Detection → Format-Preserving Masking → Placeholder Replacement → Report Generation → Re-Zipping
+ * Workspace Creation → Archive Extraction → Nested Archive Expansion → Path Tokenization → Inventory →
+ * Classification → Detection → Format-Preserving Masking → Placeholder Replacement → Report Generation → Re-Zipping
  *
- * <p>Outputs (written alongside the input):
- * <ul>
- *   <li>{@link #OUTPUT_ARCHIVE_NAME masked_code.zip} — repository with format-preserving masked text</li>
- *   <li>{@link ReportSchema#REPORT_FILENAME entity_report.xlsx} — audit trail for restoration</li>
- *   <li>{@link ReportDigest#DIGEST_FILENAME entity_report.sha256} — integrity digest of the report</li>
- * </ul>
+ * <p>Output: a self-contained ZIP named after the repository token (when sensitive) containing the masked
+ * repository folder, {@link ReportSchema#REPORT_FILENAME}, and {@link ReportDigest#DIGEST_FILENAME}.
  */
 public final class MaskingApplication {
-
-    public static final String OUTPUT_ARCHIVE_NAME = "masked_code.zip";
 
     static final int EXIT_SUCCESS = 0;
     static final int EXIT_INVALID_USAGE = 1;
     static final int EXIT_PROCESSING_FAILURE = 2;
 
-    private static final int PIPELINE_STAGES = 9;
+    private static final int PIPELINE_STAGES = 10;
 
     private final WorkspaceManager workspaceManager;
     private final ArchiveExtractor archiveExtractor;
     private final NestedArchiveProcessor nestedArchiveProcessor;
-    private final ZipCreator zipCreator;
+    private final MaskedOutputPackager maskedOutputPackager;
     private final FileIterator fileIterator;
     private final FileClassifier fileClassifier;
     private final DetectionEngine detectionEngine;
     private final MaskingEngine maskingEngine;
+    private final PathTokenizer pathTokenizer;
     private final BinaryPlaceholderCopier binaryPlaceholderCopier;
     private final XlsxReportWriter xlsxReportWriter;
     private final TextFileReader textFileReader;
@@ -106,10 +103,11 @@ public final class MaskingApplication {
         this.archiveExtractor = new ArchiveExtractor(workspaceManager, config);
         this.fileIterator = new FileIterator(workspaceManager);
         this.nestedArchiveProcessor = new NestedArchiveProcessor(fileIterator, archiveExtractor);
-        this.zipCreator = new ZipCreator(workspaceManager);
+        this.maskedOutputPackager = new MaskedOutputPackager(workspaceManager);
         this.fileClassifier = new FileClassifier();
         this.detectionEngine = new DetectionEngine();
         this.maskingEngine = new MaskingEngine();
+        this.pathTokenizer = new PathTokenizer();
         this.binaryPlaceholderCopier = new BinaryPlaceholderCopier();
         this.xlsxReportWriter = new XlsxReportWriter();
         this.textFileReader = new TextFileReader();
@@ -164,50 +162,67 @@ public final class MaskingApplication {
             printMetric("Archives Expanded", pipelineArchivesExpanded);
             System.out.println();
 
-            printStage(4, "Repository Inventory");
-            RepositoryInventory inventory = new RepositoryInventory(fileIterator.collectFiles(extractionRoot));
+            MappingRegistry mappingRegistry = new MappingRegistry();
+            resetPipelineStats();
+
+            printStage(4, "Path Tokenization");
+            String repositoryName = PathTokenizer.deriveRepositoryName(inputPath);
+            PathTokenizationResult pathTokenization = pathTokenizer.tokenize(
+                    extractionRoot,
+                    repositoryName,
+                    maskingEngine.getGlobalValueMapper(),
+                    mappingRegistry);
+            printSuccess("Repository Folder: " + pathTokenization.repositoryFolder());
+            System.out.println();
+
+            printStage(5, "Repository Inventory");
+            RepositoryInventory inventory = new RepositoryInventory(
+                    fileIterator.collectFiles(pathTokenization.repositoryRoot()));
             pipelineFilesProcessed = inventory.getFiles().size();
             printSuccess("Files Discovered: " + pipelineFilesProcessed);
             printMetric("Total Files", pipelineFilesProcessed);
             System.out.println();
 
-            MappingRegistry mappingRegistry = new MappingRegistry();
-            resetPipelineStats();
-
-            printStage(5, "File Classification");
+            printStage(6, "File Classification");
             List<MaskedFileResult> maskedFiles = maskTextFiles(inventory, mappingRegistry);
             printClassificationSummary();
             System.out.println();
 
-            printStage(6, "Sensitive Data Detection");
+            printStage(7, "Sensitive Data Detection");
             printDetectionSummary();
             System.out.println();
 
-            printStage(7, "Format-Preserving Masking");
+            printStage(8, "Format-Preserving Masking");
             printMetric("Unique Values Mapped", maskingEngine.getGlobalValueMapper().size());
             printMetric("Total Mappings Registered", mappingRegistry.getRecords().size());
             printMetric("Files Masked", maskedFiles.size());
             System.out.println();
 
-            printStage(8, "Binary Replacement");
+            printStage(9, "Binary Replacement");
             int placeholdersReplaced = replaceBinaryAssets(inventory);
             printMetric("Placeholders Applied", placeholdersReplaced);
             System.out.println();
 
-            printStage(9, "Output Generation");
-            Path reportPath = resolveReportPath(inputPath);
+            printStage(10, "Output Generation");
+            Path reportPath = workspace.getRootPath().resolve(ReportSchema.REPORT_FILENAME);
             xlsxReportWriter.write(mappingRegistry, reportPath);
             printSuccess(ReportSchema.REPORT_FILENAME);
-            Path digestPath = resolveDigestPath(reportPath);
+            Path digestPath = workspace.getRootPath().resolve(ReportDigest.DIGEST_FILENAME);
             ReportDigest.write(reportPath, digestPath);
             printSuccess(ReportDigest.DIGEST_FILENAME);
-            RepositoryMetadata.writeMarker(extractionRoot);
-            Path maskedZipPath = resolveMaskedZipPath(inputPath);
-            zipCreator.create(extractionRoot, maskedZipPath, workspace);
-            printSuccess(OUTPUT_ARCHIVE_NAME);
-            printDetail(ReportSchema.REPORT_FILENAME, reportPath);
-            printDetail(ReportDigest.DIGEST_FILENAME, digestPath);
-            printDetail(OUTPUT_ARCHIVE_NAME, maskedZipPath);
+            RepositoryMetadata.writeMarker(pathTokenization.repositoryRoot());
+            Path maskedZipPath = resolveMaskedZipPath(inputPath, pathTokenization.outputZipName());
+            maskedOutputPackager.create(
+                    pathTokenization.repositoryRoot(),
+                    pathTokenization.repositoryFolder(),
+                    reportPath,
+                    digestPath,
+                    maskedZipPath,
+                    workspace);
+            printSuccess(pathTokenization.outputZipName());
+            printDetail(ReportSchema.REPORT_FILENAME, maskedZipPath + " (inside archive)");
+            printDetail(ReportDigest.DIGEST_FILENAME, maskedZipPath + " (inside archive)");
+            printDetail("Output Archive", maskedZipPath);
             System.out.println();
 
             printSummary(maskedFiles, mappingRegistry, placeholdersReplaced);
@@ -316,6 +331,10 @@ public final class MaskingApplication {
         System.out.printf("    %-25s: %s%n", label, value.toAbsolutePath().normalize());
     }
 
+    private static void printDetail(String label, String value) {
+        System.out.printf("    %-25s: %s%n", label, value);
+    }
+
     private static void printCategoryCount(String category, int count) {
         System.out.printf("    %-10s: %d%n", category, count);
     }
@@ -355,28 +374,12 @@ public final class MaskingApplication {
         System.err.println("Usage: java -jar scramble-mask.jar <repo.zip|folder>");
     }
 
-    private static Path resolveReportPath(Path inputPath) {
-        Path reportDirectory = inputPath.toAbsolutePath().getParent();
-        if (reportDirectory == null) {
-            reportDirectory = Paths.get(".");
-        }
-        return reportDirectory.resolve(ReportSchema.REPORT_FILENAME);
-    }
-
-    private static Path resolveDigestPath(Path reportPath) {
-        Path reportDirectory = reportPath.getParent();
-        if (reportDirectory == null) {
-            reportDirectory = Paths.get(".");
-        }
-        return reportDirectory.resolve(ReportDigest.DIGEST_FILENAME);
-    }
-
-    private static Path resolveMaskedZipPath(Path inputPath) {
+    private static Path resolveMaskedZipPath(Path inputPath, String outputZipName) {
         Path outputDirectory = inputPath.toAbsolutePath().getParent();
         if (outputDirectory == null) {
             outputDirectory = Paths.get(".");
         }
-        return outputDirectory.resolve(OUTPUT_ARCHIVE_NAME);
+        return outputDirectory.resolve(outputZipName);
     }
 
     private record MaskedFileResult(String repoRelativePath, String maskedContent) {

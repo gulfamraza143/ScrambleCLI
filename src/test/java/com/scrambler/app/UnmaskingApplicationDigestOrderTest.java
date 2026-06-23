@@ -29,6 +29,7 @@ class UnmaskingApplicationDigestOrderTest {
 
     private static final Pattern RUN_METHOD_BODY = Pattern.compile(
             "Path extractionRoot = archiveExtractor\\.extract\\(maskedZipPath, workspace\\);\\s*"
+                    + "Path reportPath = resolveReportPath\\(extractionRoot, externalReportPath\\);\\s*"
                     + "verifyReportDigest\\(reportPath\\);\\s*"
                     + "List<EntityReportRecord> records = mappingLoader\\.load\\(reportPath\\);",
             Pattern.DOTALL);

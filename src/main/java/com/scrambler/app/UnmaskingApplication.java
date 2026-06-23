@@ -17,8 +17,11 @@ import com.scrambler.inventory.FileIterator;
 import com.scrambler.inventory.RepositoryInventory;
 import com.scrambler.report.EntityReportRecord;
 import com.scrambler.report.ReportDigest;
+import com.scrambler.report.ReportSchema;
 import com.scrambler.unmasking.MappingIndex;
 import com.scrambler.unmasking.MappingLoader;
+import com.scrambler.unmasking.PathRestorer;
+import com.scrambler.unmasking.PathRestorer.PathRestoreResult;
 import com.scrambler.unmasking.RestoreResult;
 import com.scrambler.unmasking.RestoreValidator;
 import com.scrambler.unmasking.UnmaskingEngine;
@@ -32,7 +35,7 @@ import java.util.List;
 
 /**
  * Entry point for the unmasking CLI.
- * Milestone 7 restores TEXT content from a masked repository archive and entity report.
+ * Restores TEXT content and path names from a self-contained masked repository archive.
  */
 public final class UnmaskingApplication {
 
@@ -49,6 +52,7 @@ public final class UnmaskingApplication {
     private final FileClassifier fileClassifier;
     private final MappingLoader mappingLoader;
     private final RestoreValidator restoreValidator;
+    private final PathRestorer pathRestorer;
     private final UnmaskingEngine unmaskingEngine;
     private final TextFileReader textFileReader;
     private final TextFileWriter textFileWriter;
@@ -75,6 +79,7 @@ public final class UnmaskingApplication {
         this.fileClassifier = new FileClassifier();
         this.mappingLoader = new MappingLoader();
         this.restoreValidator = new RestoreValidator();
+        this.pathRestorer = new PathRestorer();
         this.unmaskingEngine = new UnmaskingEngine();
         this.textFileReader = new TextFileReader();
         this.textFileWriter = new TextFileWriter();
@@ -83,7 +88,8 @@ public final class UnmaskingApplication {
     /**
      * Application entry point.
      *
-     * @param args command-line arguments; expects masked repository ZIP and entity report paths
+     * @param args command-line arguments; expects a self-contained masked repository ZIP,
+     *             or legacy {@code <masked_code.zip> <entity_report.xlsx>}
      */
     public static void main(String[] args) {
         int exitCode = new UnmaskingApplication().run(args);
@@ -97,27 +103,30 @@ public final class UnmaskingApplication {
      * @return exit code per the architecture contract
      */
     public int run(String[] args) {
-        if (args == null || args.length != 2) {
+        if (args == null || args.length == 0 || args.length > 2) {
             printUsage();
             return EXIT_INVALID_USAGE;
         }
 
         Path maskedZipPath = Paths.get(args[0]);
-        Path reportPath = Paths.get(args[1]);
+        Path externalReportPath = args.length == 2 ? Paths.get(args[1]) : null;
         Path outputZipPath = resolveOutputPath(maskedZipPath);
 
         Workspace workspace = null;
         try {
             workspace = workspaceManager.createWorkspace(config);
             Path extractionRoot = archiveExtractor.extract(maskedZipPath, workspace);
+            Path reportPath = resolveReportPath(extractionRoot, externalReportPath);
             verifyReportDigest(reportPath);
             List<EntityReportRecord> records = mappingLoader.load(reportPath);
             restoreValidator.validate(records);
             MappingIndex mappingIndex = MappingIndex.from(records);
+            PathRestoreResult pathRestoreResult = pathRestorer.restore(extractionRoot, records);
             RestoreResult restoreResult = restoreTextFiles(
-                    new RepositoryInventory(fileIterator.collectFiles(extractionRoot)),
+                    new RepositoryInventory(fileIterator.collectFiles(pathRestoreResult.repositoryRoot())),
                     mappingIndex);
-            zipCreator.create(extractionRoot, outputZipPath, workspace);
+            String entryPrefix = pathRestoreResult.entryPrefix() == null ? "" : pathRestoreResult.entryPrefix();
+            zipCreator.create(pathRestoreResult.repositoryRoot(), entryPrefix, outputZipPath, workspace);
             printSummary(restoreResult, outputZipPath);
             return EXIT_SUCCESS;
         } catch (ArchiveException | FileProcessingException | MaskingException | ReportException e) {
@@ -164,7 +173,21 @@ public final class UnmaskingApplication {
     }
 
     private static void printUsage() {
-        System.err.println("Usage: java -jar scramble-unmask.jar <masked_code.zip> <entity_report.xlsx>");
+        System.err.println("Usage: java -jar scramble-unmask.jar <token.zip>");
+        System.err.println("   or: java -jar scramble-unmask.jar <masked_code.zip> <entity_report.xlsx>");
+    }
+
+    private static Path resolveReportPath(Path extractionRoot, Path externalReportPath) {
+        if (externalReportPath != null) {
+            return externalReportPath;
+        }
+
+        Path packagedReport = extractionRoot.resolve(ReportSchema.REPORT_FILENAME);
+        if (Files.isRegularFile(packagedReport)) {
+            return packagedReport;
+        }
+
+        throw new ReportException("Entity report not found inside archive: " + ReportSchema.REPORT_FILENAME);
     }
 
     private static void verifyReportDigest(Path reportPath) {

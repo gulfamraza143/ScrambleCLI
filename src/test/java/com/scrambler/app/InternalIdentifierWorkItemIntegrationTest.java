@@ -42,9 +42,10 @@ class InternalIdentifierWorkItemIntegrationTest {
 
         assertEquals(MaskingApplication.EXIT_SUCCESS, exitCode);
 
-        Path maskedZip = tempDir.resolve(MaskingApplication.OUTPUT_ARCHIVE_NAME);
-        Path reportPath = tempDir.resolve(ReportSchema.REPORT_FILENAME);
-        String masked = readZipEntry(maskedZip, "config/ids.properties");
+        Path maskedZip = tempDir.resolve("repo.zip");
+        Path reportPath = tempDir.resolve("extracted-report.xlsx");
+        extractZipEntry(maskedZip, ReportSchema.REPORT_FILENAME, reportPath);
+        String masked = readZipEntry(maskedZip, "repo/config/ids.properties");
 
         assertFalse(masked.contains("E123456"));
         assertFalse(masked.contains("BAN123456"));
@@ -85,9 +86,16 @@ class InternalIdentifierWorkItemIntegrationTest {
         new MaskingApplication(ScramblerConfig.builder().workspaceBasePath(tempDir).build())
                 .run(new String[]{repoZip.toString()});
 
-        List<EntityReportRecord> records = new MappingLoader().load(tempDir.resolve(ReportSchema.REPORT_FILENAME));
+        Path maskedZip = tempDir.resolve("repo.zip");
+        List<EntityReportRecord> records = new MappingLoader().load(extractReportFromZip(maskedZip, tempDir));
         assertTrue(records.isEmpty());
-        assertEquals(original, readZipEntry(tempDir.resolve(MaskingApplication.OUTPUT_ARCHIVE_NAME), "config/ids.properties"));
+        assertEquals(original, readZipEntry(maskedZip, "repo/config/ids.properties"));
+    }
+
+    private static Path extractReportFromZip(Path maskedZip, Path tempDir) throws Exception {
+        Path reportPath = tempDir.resolve("extracted-report.xlsx");
+        extractZipEntry(maskedZip, ReportSchema.REPORT_FILENAME, reportPath);
+        return reportPath;
     }
 
     @Test
@@ -104,12 +112,10 @@ class InternalIdentifierWorkItemIntegrationTest {
         ScramblerConfig config = ScramblerConfig.builder().workspaceBasePath(tempDir).build();
         assertEquals(MaskingApplication.EXIT_SUCCESS, new MaskingApplication(config).run(new String[]{repoZip.toString()}));
 
-        Path maskedZip = tempDir.resolve(MaskingApplication.OUTPUT_ARCHIVE_NAME);
-        Path reportPath = tempDir.resolve(ReportSchema.REPORT_FILENAME);
+        Path maskedZip = tempDir.resolve("repo.zip");
 
         int restoreExit = new UnmaskingApplication(config).run(new String[]{
-                maskedZip.toString(),
-                reportPath.toString()
+                maskedZip.toString()
         });
 
         assertEquals(UnmaskingApplication.EXIT_SUCCESS, restoreExit);
@@ -127,11 +133,12 @@ class InternalIdentifierWorkItemIntegrationTest {
         Path repoZip = tempDir.resolve("repo.zip");
         createZip(repoZip, Map.of("config/ids.properties", original));
 
+        Path maskedZip = tempDir.resolve("repo.zip");
         new MaskingApplication(ScramblerConfig.builder().workspaceBasePath(tempDir).build())
                 .run(new String[]{repoZip.toString()});
 
         List<EntityReportRecord> records = new XlsxReportReader()
-                .read(tempDir.resolve(ReportSchema.REPORT_FILENAME));
+                .read(extractReportFromZip(maskedZip, tempDir));
 
         EntityReportRecord employee = findRecord(records, EntityType.INTERNAL_IDENTIFIER, "E123456");
         EntityReportRecord ban = findRecord(records, EntityType.INTERNAL_IDENTIFIER, "BAN123456");
@@ -163,15 +170,23 @@ class InternalIdentifierWorkItemIntegrationTest {
         }
     }
 
-    private static String readZipEntry(Path zipPath, String entryName) throws Exception {
+    private static void extractZipEntry(Path zipPath, String entryName, Path targetPath) throws Exception {
+        Files.write(targetPath, readZipEntryBytes(zipPath, entryName));
+    }
+
+    private static byte[] readZipEntryBytes(Path zipPath, String entryName) throws Exception {
         try (ZipInputStream zipInputStream = new ZipInputStream(Files.newInputStream(zipPath))) {
             ZipEntry entry;
             while ((entry = zipInputStream.getNextEntry()) != null) {
                 if (entry.getName().equals(entryName)) {
-                    return new String(zipInputStream.readAllBytes(), StandardCharsets.UTF_8);
+                    return zipInputStream.readAllBytes();
                 }
             }
         }
         throw new IllegalStateException("ZIP entry not found: " + entryName);
+    }
+
+    private static String readZipEntry(Path zipPath, String entryName) throws Exception {
+        return new String(readZipEntryBytes(zipPath, entryName), StandardCharsets.UTF_8);
     }
 }

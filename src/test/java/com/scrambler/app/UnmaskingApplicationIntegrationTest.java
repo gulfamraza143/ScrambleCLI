@@ -245,7 +245,7 @@ class UnmaskingApplicationIntegrationTest {
 
     @Test
     void rejectsInvalidUsage(@TempDir Path tempDir) {
-        int exitCode = new UnmaskingApplication(configFor(tempDir)).run(new String[]{"only-one-arg"});
+        int exitCode = new UnmaskingApplication(configFor(tempDir)).run(new String[]{});
         assertEquals(UnmaskingApplication.EXIT_INVALID_USAGE, exitCode);
     }
 

@@ -32,7 +32,7 @@ class MaskingIdempotencyTest {
         int exitCode = new MaskingApplication(configFor(tempDir)).run(new String[]{repoRoot.toString()});
 
         assertEquals(MaskingApplication.EXIT_SUCCESS, exitCode);
-        assertTrue(Files.isRegularFile(tempDir.resolve(MaskingApplication.OUTPUT_ARCHIVE_NAME)));
+        assertTrue(Files.isRegularFile(tempDir.resolve("repo.zip")));
     }
 
     @Test
@@ -45,12 +45,12 @@ class MaskingIdempotencyTest {
         int exitCode = captureStderrAndRun(tempDir, repoRoot.toString());
 
         assertEquals(MaskingApplication.EXIT_PROCESSING_FAILURE, exitCode);
-        assertFalse(Files.exists(tempDir.resolve(MaskingApplication.OUTPUT_ARCHIVE_NAME)));
+        assertFalse(Files.exists(tempDir.resolve("repo.zip")));
     }
 
     @Test
     void alreadyMaskedZipFails(@TempDir Path tempDir) throws Exception {
-        Path repoZip = tempDir.resolve("repo.zip");
+        Path repoZip = tempDir.resolve("source.zip");
         createZip(repoZip, Map.of(
                 RepositoryMetadata.FILENAME, RepositoryMetadata.toJson(),
                 "App.java", "public class App { String email = \"admin@icici.com\"; }"));
@@ -58,7 +58,6 @@ class MaskingIdempotencyTest {
         int exitCode = captureStderrAndRun(tempDir, repoZip.toString());
 
         assertEquals(MaskingApplication.EXIT_PROCESSING_FAILURE, exitCode);
-        assertFalse(Files.exists(tempDir.resolve(MaskingApplication.OUTPUT_ARCHIVE_NAME)));
     }
 
     @Test
@@ -71,9 +70,9 @@ class MaskingIdempotencyTest {
         int exitCode = new MaskingApplication(configFor(tempDir)).run(new String[]{repoRoot.toString()});
 
         assertEquals(MaskingApplication.EXIT_SUCCESS, exitCode);
-        Path maskedZip = tempDir.resolve(MaskingApplication.OUTPUT_ARCHIVE_NAME);
-        assertTrue(zipContainsEntry(maskedZip, RepositoryMetadata.FILENAME));
-        assertEquals(RepositoryMetadata.toJson(), readZipEntry(maskedZip, RepositoryMetadata.FILENAME));
+        Path maskedZip = tempDir.resolve("repo.zip");
+        assertTrue(zipContainsEntry(maskedZip, "repo/" + RepositoryMetadata.FILENAME));
+        assertEquals(RepositoryMetadata.toJson(), readZipEntry(maskedZip, "repo/" + RepositoryMetadata.FILENAME));
     }
 
     @Test
@@ -85,9 +84,9 @@ class MaskingIdempotencyTest {
         int exitCode = new MaskingApplication(configFor(tempDir)).run(new String[]{repoRoot.toString()});
 
         assertEquals(MaskingApplication.EXIT_SUCCESS, exitCode);
-        Path maskedZip = tempDir.resolve(MaskingApplication.OUTPUT_ARCHIVE_NAME);
-        assertTrue(zipContainsEntry(maskedZip, RepositoryMetadata.FILENAME));
-        assertEquals(RepositoryMetadata.toJson(), readZipEntry(maskedZip, RepositoryMetadata.FILENAME));
+        Path maskedZip = tempDir.resolve("repo.zip");
+        assertTrue(zipContainsEntry(maskedZip, "repo/" + RepositoryMetadata.FILENAME));
+        assertEquals(RepositoryMetadata.toJson(), readZipEntry(maskedZip, "repo/" + RepositoryMetadata.FILENAME));
     }
 
     @Test
@@ -105,8 +104,8 @@ class MaskingIdempotencyTest {
         int exitCode = new MaskingApplication(configFor(tempDir)).run(new String[]{repoRoot.toString()});
 
         assertEquals(MaskingApplication.EXIT_SUCCESS, exitCode);
-        Path maskedZip = tempDir.resolve(MaskingApplication.OUTPUT_ARCHIVE_NAME);
-        assertTrue(zipContainsEntry(maskedZip, RepositoryMetadata.FILENAME));
+        Path maskedZip = tempDir.resolve("repo.zip");
+        assertTrue(zipContainsEntry(maskedZip, "repo/" + RepositoryMetadata.FILENAME));
     }
 
     @Test
