@@ -16,11 +16,15 @@ import java.util.ArrayList;
 import java.util.Comparator;
 import java.util.List;
 import java.util.Objects;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
 /**
  * Writes {@link ReportSchema#REPORT_FILENAME} from an in-memory {@link MappingRegistry}.
  */
 public final class XlsxReportWriter {
+
+    private static final Logger LOGGER = LoggerFactory.getLogger(XlsxReportWriter.class);
 
     private static final Comparator<MappingRecord> DETERMINISTIC_ORDER = Comparator
             .comparing(MappingRecord::getRepoRelativePath)
@@ -42,6 +46,7 @@ public final class XlsxReportWriter {
 
         List<MappingRecord> records = new ArrayList<>(mappingRegistry.getRecords());
         records.sort(DETERMINISTIC_ORDER);
+        LOGGER.info("Writing entity report with {} mapping records to {}", records.size(), outputPath);
 
         Path parent = outputPath.getParent();
         if (parent != null) {
@@ -77,7 +82,9 @@ public final class XlsxReportWriter {
             try (OutputStream outputStream = Files.newOutputStream(outputPath)) {
                 workbook.write(outputStream);
             }
+            LOGGER.info("Entity report written successfully to {}", outputPath);
         } catch (IOException e) {
+            LOGGER.error("Failed to write entity report to {}", outputPath, e);
             throw new ReportException("Failed to write entity report: " + outputPath, e);
         }
     }

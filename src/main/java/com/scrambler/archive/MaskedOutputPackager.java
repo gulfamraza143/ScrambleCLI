@@ -16,11 +16,15 @@ import java.util.Objects;
 import java.util.stream.Stream;
 import java.util.zip.ZipEntry;
 import java.util.zip.ZipOutputStream;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
 /**
  * Packages a masked repository folder into a ZIP archive.
  */
 public final class MaskedOutputPackager {
+
+    private static final Logger LOGGER = LoggerFactory.getLogger(MaskedOutputPackager.class);
 
     private static final int COPY_BUFFER_SIZE = 8192;
     private static final String STAGING_ZIP_NAME = "output.zip.tmp";
@@ -63,6 +67,8 @@ public final class MaskedOutputPackager {
             throw new ArchiveException("Repository root contains no files: " + repositoryRoot);
         }
 
+        LOGGER.info("Packaging masked repository '{}' with {} files into {}",
+                repositoryFolder, repositoryFiles.size(), outputZip);
         Path stagingZip = workspace.getRootPath().resolve(STAGING_ZIP_NAME);
         try {
             writeZip(repositoryRoot, repositoryFolder, stagingZip, repositoryFiles);
@@ -71,10 +77,13 @@ public final class MaskedOutputPackager {
                 Files.createDirectories(parent);
             }
             moveToOutput(stagingZip, outputZip);
+            LOGGER.info("Masked repository packaged successfully to {}", outputZip);
         } catch (ArchiveException e) {
+            LOGGER.error("Failed to package masked repository to {}", outputZip, e);
             deleteQuietly(stagingZip);
             throw e;
         } catch (IOException e) {
+            LOGGER.error("Failed to package masked repository to {}", outputZip, e);
             deleteQuietly(stagingZip);
             throw new ArchiveException("Failed to create masked repository ZIP archive: " + outputZip, e);
         }

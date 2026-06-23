@@ -19,11 +19,15 @@ import java.util.Locale;
 import java.util.Map;
 import java.util.Set;
 import java.util.stream.Stream;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
 /**
  * Tokenizes sensitive repository, folder, and file names within an extracted repository tree.
  */
 public final class PathTokenizer {
+
+    private static final Logger LOGGER = LoggerFactory.getLogger(PathTokenizer.class);
 
     private static final String PATH_MAPPING_CONTEXT = ".";
     private static final int PATH_MAPPING_OFFSET = 0;
@@ -61,14 +65,18 @@ public final class PathTokenizer {
             GlobalValueMapper mapper,
             MappingRegistry registry) {
         try {
+            LOGGER.info("Starting path tokenization for repository: {}", repositoryName);
             Path contentRoot = resolveContentRoot(extractionRoot, repositoryName);
             Map<String, String> segmentMappings = collectSegmentMappings(contentRoot, mapper, registry);
+            LOGGER.debug("Collected {} path segment mappings", segmentMappings.size());
             applySegmentRenames(contentRoot, segmentMappings);
 
             String repositoryFolder = resolveRepositoryFolderName(repositoryName, mapper, registry);
             Path repositoryRoot = wrapRepositoryFolder(extractionRoot, contentRoot, repositoryFolder);
 
             String outputZipName = repositoryFolder + ".zip";
+            LOGGER.info("Path tokenization complete; repository folder: {}, output zip: {}",
+                    repositoryFolder, outputZipName);
             return new PathTokenizationResult(repositoryRoot, repositoryFolder, outputZipName);
         } catch (IOException e) {
             throw new FileProcessingException("Failed to tokenize repository paths", e);

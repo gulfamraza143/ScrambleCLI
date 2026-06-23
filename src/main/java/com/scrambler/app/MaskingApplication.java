@@ -30,14 +30,13 @@ import com.scrambler.replacement.BinaryPlaceholderCopier;
 import com.scrambler.replacement.ReplacementPlan;
 import com.scrambler.workspace.Workspace;
 import com.scrambler.workspace.WorkspaceManager;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
 import java.io.IOException;
 import java.nio.file.Files;
 import java.nio.file.Path;
 import java.nio.file.Paths;
-import java.util.ArrayList;
-import java.util.Comparator;
-import java.util.List;
 
 /**
  * Orchestrates the SCRAMBLE Enterprise format-preserving masking pipeline.
@@ -52,6 +51,8 @@ import java.util.List;
  * {@link ReportSchema#REPORT_FILENAME} written beside the input archive.
  */
 public final class MaskingApplication {
+
+    private static final Logger LOGGER = LoggerFactory.getLogger(MaskingApplication.class);
 
     static final int EXIT_SUCCESS = 0;
     static final int EXIT_INVALID_USAGE = 1;
@@ -74,7 +75,6 @@ public final class MaskingApplication {
     private final TextFileWriter textFileWriter;
     private final ScramblerConfig config;
 
-    private int pipelineFilesProcessed;
     private int pipelineTextCount;
     private int pipelineImageCount;
     private int pipelineDocumentCount;
@@ -136,6 +136,7 @@ public final class MaskingApplication {
         }
 
         Path inputPath = Paths.get(args[0]);
+        LOGGER.info("Starting masking pipeline for input: {}", inputPath.toAbsolutePath().normalize());
 
         Workspace workspace = null;
         try {
@@ -144,27 +145,34 @@ public final class MaskingApplication {
             }
 
             printStage(1, "Workspace Creation");
+            LOGGER.info("Stage 1 - Workspace Creation");
             workspace = workspaceManager.createWorkspace(config);
             printSuccess("Workspace Ready");
             printDetail("Workspace Path", workspace.getRootPath());
+            LOGGER.info("Workspace ready at {}", workspace.getRootPath());
             System.out.println();
 
             printStage(2, "Repository Extraction");
+            LOGGER.info("Stage 2 - Repository Extraction");
             Path extractionRoot = archiveExtractor.extract(inputPath, workspace);
             RepositoryMetadata.ensureNotAlreadyMasked(extractionRoot);
             printSuccess("Repository Extracted");
             printDetail("Extraction Root", extractionRoot);
+            LOGGER.info("Repository extracted to {}", extractionRoot);
             System.out.println();
 
             printStage(3, "Nested Archive Expansion");
+            LOGGER.info("Stage 3 - Nested Archive Expansion");
             pipelineArchivesExpanded = nestedArchiveProcessor.expandArchives(extractionRoot, workspace);
             printMetric("Archives Expanded", pipelineArchivesExpanded);
+            LOGGER.info("Nested archive expansion complete; archives expanded: {}", pipelineArchivesExpanded);
             System.out.println();
 
             MappingRegistry mappingRegistry = new MappingRegistry();
             resetPipelineStats();
 
             printStage(4, "Path Tokenization");
+            LOGGER.info("Stage 4 - Path Tokenization");
             String repositoryName = PathTokenizer.deriveRepositoryName(inputPath);
             PathTokenizationResult pathTokenization = pathTokenizer.tokenize(
                     extractionRoot,
@@ -172,37 +180,47 @@ public final class MaskingApplication {
                     maskingEngine.getGlobalValueMapper(),
                     mappingRegistry);
             printSuccess("Repository Folder: " + pathTokenization.repositoryFolder());
+            LOGGER.info("Repository folder token: {}", pathTokenization.repositoryFolder());
+            LOGGER.info("Path tokenization complete; output archive name: {}", pathTokenization.outputZipName());
             System.out.println();
 
             printStage(5, "Repository Inventory");
+            LOGGER.info("Stage 5 - Repository Inventory");
             RepositoryInventory inventory = new RepositoryInventory(
                     fileIterator.collectFiles(pathTokenization.repositoryRoot()));
-            pipelineFilesProcessed = inventory.getFiles().size();
-            printSuccess("Files Discovered: " + pipelineFilesProcessed);
-            printMetric("Total Files", pipelineFilesProcessed);
+            int filesDiscovered = inventory.getFiles().size();
+            printSuccess("Files Discovered: " + filesDiscovered);
+            LOGGER.info("Inventory size: {}", filesDiscovered);
             System.out.println();
 
             printStage(6, "File Classification");
-            List<MaskedFileResult> maskedFiles = maskTextFiles(inventory, mappingRegistry);
+            LOGGER.info("Stage 6 - File Classification, Detection, and Masking");
+            int maskedFilesCount = maskTextFiles(inventory, mappingRegistry);
             printClassificationSummary();
             System.out.println();
 
             printStage(7, "Sensitive Data Detection");
+            LOGGER.info("Stage 7 - Sensitive Data Detection");
             printDetectionSummary();
+            LOGGER.info("Detection complete; files scanned: {}, entities found: {}",
+                    pipelineFilesScanned, pipelineEntitiesFound);
             System.out.println();
 
             printStage(8, "Format-Preserving Masking");
+            LOGGER.info("Stage 8 - Format-Preserving Masking");
             printMetric("Unique Values Mapped", maskingEngine.getGlobalValueMapper().size());
             printMetric("Total Mappings Registered", mappingRegistry.getRecords().size());
-            printMetric("Files Masked", maskedFiles.size());
+            printMetric("Files Masked", maskedFilesCount);
             System.out.println();
 
             printStage(9, "Binary Replacement");
+            LOGGER.info("Stage 9 - Binary Replacement");
             int placeholdersReplaced = replaceBinaryAssets(inventory);
             printMetric("Placeholders Applied", placeholdersReplaced);
             System.out.println();
 
             printStage(10, "Output Generation");
+            LOGGER.info("Stage 10 - Output Generation");
             Path outputDirectory = resolveOutputDirectory(inputPath);
             Path reportPath = outputDirectory.resolve(ReportSchema.REPORT_FILENAME);
             xlsxReportWriter.write(mappingRegistry, reportPath);
@@ -217,11 +235,14 @@ public final class MaskingApplication {
             printSuccess(pathTokenization.outputZipName());
             printDetail(ReportSchema.REPORT_FILENAME, reportPath.toAbsolutePath().normalize());
             printDetail("Output Archive", maskedZipPath);
+            LOGGER.info("Output generation complete; report: {}, archive: {}", reportPath, maskedZipPath);
             System.out.println();
 
-            printSummary(maskedFiles, mappingRegistry, placeholdersReplaced);
+            printSummary(filesDiscovered, maskedFilesCount, mappingRegistry, placeholdersReplaced);
+            LOGGER.info("Masking pipeline completed successfully");
             return EXIT_SUCCESS;
         } catch (AlreadyMaskedException e) {
+            LOGGER.warn("Repository already masked: {}", e.getMessage());
             return reportAlreadyMasked();
         } catch (ArchiveException | FileProcessingException | ReportException e) {
             return reportProcessingFailure(e);
@@ -234,10 +255,10 @@ public final class MaskingApplication {
         }
     }
 
-    private List<MaskedFileResult> maskTextFiles(
+    private int maskTextFiles(
             RepositoryInventory inventory,
             MappingRegistry mappingRegistry) throws FileProcessingException {
-        List<MaskedFileResult> maskedFiles = new ArrayList<>();
+        int maskedFilesCount = 0;
 
         for (FileInfo fileInfo : inventory.getFiles()) {
             ClassificationResult classification = fileClassifier.classify(fileInfo);
@@ -246,18 +267,18 @@ public final class MaskingApplication {
                 continue;
             }
 
+            LOGGER.debug("Processing file {}", fileInfo.getRepoRelativePath());
             String content = textFileReader.readUtf8(fileInfo.getAbsolutePath());
             DetectionResult detectionResult = detectionEngine.detect(new DetectionContext(fileInfo, content));
             recordDetection(detectionResult);
             String maskedContent = maskingEngine.mask(content, detectionResult, mappingRegistry);
             if (detectionResult.hasEntities()) {
                 textFileWriter.writeUtf8(fileInfo.getAbsolutePath(), maskedContent);
-                maskedFiles.add(new MaskedFileResult(fileInfo.getRepoRelativePath(), maskedContent));
+                maskedFilesCount++;
             }
         }
 
-        maskedFiles.sort(Comparator.comparing(MaskedFileResult::repoRelativePath));
-        return maskedFiles;
+        return maskedFilesCount;
     }
 
     private int replaceBinaryAssets(RepositoryInventory inventory) {
@@ -325,24 +346,21 @@ public final class MaskingApplication {
         System.out.printf("    %-25s: %s%n", label, value.toAbsolutePath().normalize());
     }
 
-    private static void printDetail(String label, String value) {
-        System.out.printf("    %-25s: %s%n", label, value);
-    }
-
     private static void printCategoryCount(String category, int count) {
         System.out.printf("    %-10s: %d%n", category, count);
     }
 
     private void printSummary(
-            List<MaskedFileResult> maskedFiles,
+            int filesDiscovered,
+            int maskedFilesCount,
             MappingRegistry mappingRegistry,
             int placeholdersReplaced) {
         System.out.println("==================================================");
         System.out.println("SUMMARY");
         System.out.println("==================================================");
-        printMetric("Files Processed", pipelineFilesProcessed);
+        printMetric("Files Processed", filesDiscovered);
         printMetric("Archives Expanded", pipelineArchivesExpanded);
-        printMetric("Files Masked", maskedFiles.size());
+        printMetric("Files Masked", maskedFilesCount);
         printMetric("Entities Masked", mappingRegistry.getRecords().size());
         printMetric("Unique Values Mapped", maskingEngine.getGlobalValueMapper().size());
         printMetric("Placeholders Applied", placeholdersReplaced);
@@ -360,6 +378,7 @@ public final class MaskingApplication {
         if (message == null || message.isBlank()) {
             message = failure.getClass().getSimpleName();
         }
+        LOGGER.error("Processing failed", failure);
         System.err.println("Processing failed: " + message);
         return EXIT_PROCESSING_FAILURE;
     }
@@ -374,8 +393,5 @@ public final class MaskingApplication {
             outputDirectory = Paths.get(".");
         }
         return outputDirectory;
-    }
-
-    private record MaskedFileResult(String repoRelativePath, String maskedContent) {
     }
 }

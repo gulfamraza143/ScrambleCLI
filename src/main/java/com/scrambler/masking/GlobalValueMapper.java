@@ -6,6 +6,8 @@ import com.scrambler.exception.MaskingException;
 import java.util.HashMap;
 import java.util.Map;
 import java.util.Objects;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
 /**
  * Global original-to-masked dictionary guaranteeing bijective mappings within a masking run.
@@ -13,6 +15,8 @@ import java.util.Objects;
  * Same original value always maps to the same masked value; different originals receive different masked values.
  */
 public final class GlobalValueMapper {
+
+    private static final Logger LOGGER = LoggerFactory.getLogger(GlobalValueMapper.class);
 
     private static final int MAX_COLLISION_ATTEMPTS = 10_000;
 
@@ -73,7 +77,7 @@ public final class GlobalValueMapper {
             String candidate = generateCandidate(entityType, original, attempt);
             String mappedOriginal = maskedToOriginal.get(candidate);
             if (mappedOriginal == null) {
-                register(original, candidate);
+                register(entityType, original, candidate);
                 return candidate;
             }
             if (mappedOriginal.equals(original)) {
@@ -104,9 +108,14 @@ public final class GlobalValueMapper {
         return originalToMasked.size();
     }
 
-    private void register(String original, String masked) {
+    private void register(EntityType entityType, String original, String masked) {
         originalToMasked.put(original, masked);
         maskedToOriginal.put(masked, original);
+        if (entityType == EntityType.REPOSITORY_NAME
+                || entityType == EntityType.FOLDER_NAME
+                || entityType == EntityType.FILE_NAME) {
+            LOGGER.debug("Path mapping registered for {}: {} -> {}", entityType, original, masked);
+        }
     }
 
     private String findSharedCaseVariantMapping(String original, String replacement) {

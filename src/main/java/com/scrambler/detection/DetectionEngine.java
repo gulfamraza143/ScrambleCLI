@@ -10,11 +10,15 @@ import java.util.List;
 import java.util.Map;
 import java.util.regex.Matcher;
 import java.util.regex.Pattern;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
 /**
  * Rule-driven scanner for sensitive entities in text content.
  */
 public final class DetectionEngine {
+
+    private static final Logger LOGGER = LoggerFactory.getLogger(DetectionEngine.class);
 
     private static final Pattern EMAIL_PATTERN = Pattern.compile(
             "(?i)\\b[a-z0-9._%+-]+@[a-z0-9.-]+\\.[a-z]{2,}\\b");
@@ -131,6 +135,8 @@ public final class DetectionEngine {
                 .map(ResolvedMatch::entity)
                 .sorted(Comparator.comparingInt(Entity::getStartOffset))
                 .toList();
+        LOGGER.debug("Detection complete for {}: {} entities found",
+                context.getFileInfo().getRepoRelativePath(), entities.size());
         return new DetectionResult(context.getFileInfo(), entities);
     }
 

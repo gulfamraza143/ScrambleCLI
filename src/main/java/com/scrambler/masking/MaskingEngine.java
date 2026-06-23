@@ -8,11 +8,15 @@ import java.util.ArrayList;
 import java.util.Comparator;
 import java.util.List;
 import java.util.Objects;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
 /**
  * Converts detected entities into format-preserving masked values using a global value mapper.
  */
 public final class MaskingEngine {
+
+    private static final Logger LOGGER = LoggerFactory.getLogger(MaskingEngine.class);
 
     private final EntityReplacer entityReplacer;
     private final GlobalValueMapper globalValueMapper;
@@ -53,6 +57,7 @@ public final class MaskingEngine {
         }
 
         String repoRelativePath = detectionResult.getFileInfo().getRepoRelativePath();
+        LOGGER.debug("Masking {} entities in {}", detectionResult.getEntities().size(), repoRelativePath);
         List<Entity> entities = new ArrayList<>(detectionResult.getEntities());
         entities.sort(Comparator.comparingInt(Entity::getStartOffset));
 
