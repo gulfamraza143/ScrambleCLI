@@ -1,6 +1,11 @@
 package com.scrambler.detection;
 
+import com.scrambler.config.CompanyDictionary;
+
+import java.util.List;
+import java.util.Locale;
 import java.util.Set;
+import java.util.function.Predicate;
 
 /**
  * Value validators used by {@link DetectionRule} after regex matching.
@@ -42,7 +47,94 @@ final class DetectionValidators {
             { 7, 0, 4, 6, 9, 1, 3, 2, 5, 8 }
     };
 
+    private static final List<String> INTERNAL_HOST_SUFFIXES = List.of(".internal", ".local", ".corp");
+
     private DetectionValidators() {
+    }
+
+    static Predicate<String> createSensitiveUrlValidator(CompanyDictionary companyDictionary) {
+        List<String> normalizedBrands = companyDictionary.getTerms().stream()
+                .map(term -> term.replaceAll("\\s+", "").toLowerCase(Locale.ROOT))
+                .filter(term -> !term.isEmpty())
+                .toList();
+        return url -> isSensitiveUrl(url, normalizedBrands);
+    }
+
+    static boolean isSensitiveUrl(String url, List<String> normalizedBrandTerms) {
+        String host = extractUrlHost(url);
+        if (host.isEmpty()) {
+            return false;
+        }
+        String hostLower = host.toLowerCase(Locale.ROOT);
+        if ("localhost".equals(hostLower)) {
+            return true;
+        }
+        if (isPrivateOrLoopbackIpv4(hostLower)) {
+            return true;
+        }
+        for (String suffix : INTERNAL_HOST_SUFFIXES) {
+            if (hostLower.endsWith(suffix)) {
+                return true;
+            }
+        }
+        for (String brand : normalizedBrandTerms) {
+            if (hostLower.contains(brand)) {
+                return true;
+            }
+        }
+        return false;
+    }
+
+    static String extractUrlHost(String url) {
+        int schemeEnd = url.indexOf("://");
+        if (schemeEnd < 0) {
+            return "";
+        }
+        String remainder = url.substring(schemeEnd + 3);
+        int at = remainder.lastIndexOf('@');
+        if (at >= 0) {
+            remainder = remainder.substring(at + 1);
+        }
+        int end = remainder.length();
+        for (char delimiter : new char[] { ':', '/', '?', '#' }) {
+            int index = remainder.indexOf(delimiter);
+            if (index >= 0 && index < end) {
+                end = index;
+            }
+        }
+        String host = remainder.substring(0, end);
+        if (host.startsWith("[") && host.endsWith("]") && host.length() > 2) {
+            host = host.substring(1, host.length() - 1);
+        }
+        return host;
+    }
+
+    private static boolean isPrivateOrLoopbackIpv4(String host) {
+        if (!host.matches("\\d{1,3}(?:\\.\\d{1,3}){3}")) {
+            return false;
+        }
+        String[] octets = host.split("\\.");
+        if (octets.length != 4) {
+            return false;
+        }
+        int[] values = new int[4];
+        for (int index = 0; index < 4; index++) {
+            int value = Integer.parseInt(octets[index]);
+            if (value < 0 || value > 255) {
+                return false;
+            }
+            values[index] = value;
+        }
+        if (values[0] == 127) {
+            return true;
+        }
+        if (values[0] == 10) {
+            return true;
+        }
+        if (values[0] == 192 && values[1] == 168) {
+            return true;
+        }
+        return values[0] == 172 && values[1] >= 16 && values[1] <= 31;
     }
 
     static boolean isValidAadhaar(String value) {

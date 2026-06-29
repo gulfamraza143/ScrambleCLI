@@ -36,7 +36,6 @@ class KafkaPropertiesDetectionTest {
         assertTrue(types.contains("COMPANY_BRAND"), "icici in hostnames: " + types);
         assertTrue(types.contains("PASSWORD"), "embedded password in jaas config: " + types);
         assertTrue(types.contains("API_KEY"), "kafka.api.key: " + types);
-        assertTrue(types.contains("URL"), "custom-scheme registry url: " + types);
     }
 
     @Test

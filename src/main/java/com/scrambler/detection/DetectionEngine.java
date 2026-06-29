@@ -80,7 +80,7 @@ public final class DetectionEngine {
         private static final Pattern STRIPE_KEY_PATTERN = Pattern.compile(
                         "\\b(?:sk|pk|rk)_(?:live|test)_[0-9a-zA-Z]{24,}\\b");
         private static final Pattern DATABASE_URL_PATTERN = Pattern.compile(
-                        "\\bjdbc:(?:postgresql|mysql)://[^\\s'\"]+|\\bjdbc:oracle(?::[\\w]+)?:(?:@//|//|@)[^\\s'\"]+|(?:postgresql|mysql|mongodb(?:\\+srv)?|redis)://[^\\s'\"]+");
+                        "\\bjdbc:(?:postgresql|mysql)://[^\\s'\"]+|\\bjdbc:oracle(?::[\\w]+)?:(?:@//|//|@)[^\\s'\"]+|(?:postgres(?:ql)?|mysql|mongodb(?:\\+srv)?|redis)://[^\\s'\"]+");
         private static final Pattern AADHAAR_PATTERN = Pattern.compile(
                         "\\b\\d{4}[\\s-]?\\d{4}[\\s-]?\\d{4}(?![\\s-]?\\d)\\b");
         private static final Pattern UPI_ID_PATTERN = Pattern.compile(
@@ -360,7 +360,9 @@ public final class DetectionEngine {
                                 EntityType.URL,
                                 EntityDomain.INFRASTRUCTURE,
                                 URL_PATTERN,
-                                50));
+                                50,
+                                0,
+                                DetectionValidators.createSensitiveUrlValidator(companyDictionary)));
 
                 catalog.add(new DetectionRule(
                                 EntityType.DATABASE_URL,
