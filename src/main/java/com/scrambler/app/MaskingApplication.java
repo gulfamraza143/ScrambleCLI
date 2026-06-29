@@ -37,6 +37,7 @@ import java.io.IOException;
 import java.nio.file.Files;
 import java.nio.file.Path;
 import java.nio.file.Paths;
+import java.util.Optional;
 
 /**
  * Orchestrates the SCRAMBLE Enterprise format-preserving masking pipeline.
@@ -59,6 +60,9 @@ public final class MaskingApplication {
     static final int EXIT_PROCESSING_FAILURE = 2;
 
     private static final int PIPELINE_STAGES = 10;
+    private static final int FILE_PROCESSING_PROGRESS_WIDTH = 40;
+    private static final char FILE_PROCESSING_PROGRESS_FILLED = '\u2588';
+    private static final char FILE_PROCESSING_PROGRESS_EMPTY = '-';
 
     private final WorkspaceManager workspaceManager;
     private final ArchiveExtractor archiveExtractor;
@@ -155,7 +159,9 @@ public final class MaskingApplication {
             printStage(2, "Repository Extraction");
             LOGGER.info("Stage 2 - Repository Extraction");
             Path extractionRoot = archiveExtractor.extract(inputPath, workspace);
-            RepositoryMetadata.ensureNotAlreadyMasked(extractionRoot);
+            String repositoryName = PathTokenizer.deriveRepositoryName(inputPath);
+            Path repositoryContentRoot = PathTokenizer.resolveContentRoot(extractionRoot, repositoryName);
+            RepositoryMetadata.ensureNotAlreadyMasked(repositoryContentRoot);
             printSuccess("Repository Extracted");
             printDetail("Extraction Root", extractionRoot);
             LOGGER.info("Repository extracted to {}", extractionRoot);
@@ -173,7 +179,6 @@ public final class MaskingApplication {
 
             printStage(4, "Path Tokenization");
             LOGGER.info("Stage 4 - Path Tokenization");
-            String repositoryName = PathTokenizer.deriveRepositoryName(inputPath);
             PathTokenizationResult pathTokenization = pathTokenizer.tokenize(
                     extractionRoot,
                     repositoryName,
@@ -195,7 +200,9 @@ public final class MaskingApplication {
 
             printStage(6, "File Classification");
             LOGGER.info("Stage 6 - File Classification, Detection, and Masking");
+            long stage6StartNanos = System.nanoTime();
             int maskedFilesCount = maskTextFiles(inventory, mappingRegistry);
+            printStage6CompletionTime(System.nanoTime() - stage6StartNanos);
             printClassificationSummary();
             System.out.println();
 
@@ -259,26 +266,113 @@ public final class MaskingApplication {
             RepositoryInventory inventory,
             MappingRegistry mappingRegistry) throws FileProcessingException {
         int maskedFilesCount = 0;
+        int totalFiles = inventory.getFiles().size();
+        int processedFiles = 0;
+        int lastPrintedPercent = -1;
+        StringBuilder progressLine = totalFiles > 0 ? new StringBuilder(96) : null;
+        char[] progressBar = totalFiles > 0 ? new char[FILE_PROCESSING_PROGRESS_WIDTH] : null;
 
         for (FileInfo fileInfo : inventory.getFiles()) {
             ClassificationResult classification = fileClassifier.classify(fileInfo);
             recordClassification(classification.getCategory());
-            if (classification.getCategory() != FileCategory.TEXT) {
-                continue;
+            if (classification.getCategory() == FileCategory.TEXT) {
+                LOGGER.debug("Processing file {}", fileInfo.getRepoRelativePath());
+                Optional<String> contentOptional = textFileReader.readUtf8(fileInfo.getAbsolutePath());
+                if (contentOptional.isPresent()) {
+                    String content = contentOptional.get();
+                    DetectionResult detectionResult = detectionEngine.detect(new DetectionContext(fileInfo, content));
+                    recordDetection(detectionResult);
+                    String maskedContent = maskingEngine.mask(content, detectionResult, mappingRegistry);
+                    if (detectionResult.hasEntities()) {
+                        textFileWriter.writeUtf8(fileInfo.getAbsolutePath(), maskedContent);
+                        maskedFilesCount++;
+                    }
+                }
             }
 
-            LOGGER.debug("Processing file {}", fileInfo.getRepoRelativePath());
-            String content = textFileReader.readUtf8(fileInfo.getAbsolutePath());
-            DetectionResult detectionResult = detectionEngine.detect(new DetectionContext(fileInfo, content));
-            recordDetection(detectionResult);
-            String maskedContent = maskingEngine.mask(content, detectionResult, mappingRegistry);
-            if (detectionResult.hasEntities()) {
-                textFileWriter.writeUtf8(fileInfo.getAbsolutePath(), maskedContent);
-                maskedFilesCount++;
+            processedFiles++;
+            if (totalFiles > 0) {
+                lastPrintedPercent = printFileProcessingProgressIfChanged(
+                        processedFiles, totalFiles, progressLine, progressBar, lastPrintedPercent);
             }
         }
 
+        if (totalFiles > 0) {
+            if (lastPrintedPercent < 100) {
+                printFileProcessingProgress(totalFiles, totalFiles, 100, progressLine, progressBar);
+            }
+            System.out.println();
+        }
+
         return maskedFilesCount;
+    }
+
+    private static int printFileProcessingProgressIfChanged(
+            int processed,
+            int total,
+            StringBuilder line,
+            char[] bar,
+            int lastPrintedPercent) {
+        int percent = (int) ((long) processed * 100 / total);
+        if (percent == lastPrintedPercent) {
+            return lastPrintedPercent;
+        }
+        printFileProcessingProgress(processed, total, percent, line, bar);
+        return percent;
+    }
+
+    private static void printFileProcessingProgress(
+            int processed,
+            int total,
+            int percent,
+            StringBuilder line,
+            char[] bar) {
+        int filled = percent * FILE_PROCESSING_PROGRESS_WIDTH / 100;
+
+        for (int i = 0; i < FILE_PROCESSING_PROGRESS_WIDTH; i++) {
+            bar[i] = i < filled ? FILE_PROCESSING_PROGRESS_FILLED : FILE_PROCESSING_PROGRESS_EMPTY;
+        }
+
+        line.setLength(0);
+        line.append("Processing Repository: [");
+        line.append(bar);
+        line.append("] ");
+        line.append(percent);
+        line.append("% (");
+        line.append(processed);
+        line.append('/');
+        line.append(total);
+        line.append(')');
+
+        System.out.print('\r');
+        System.out.print(line);
+    }
+
+    private static void printStage6CompletionTime(long elapsedNanos) {
+        if (elapsedNanos < 1_000_000_000L) {
+            System.out.printf("Completed in %d ms%n%n", elapsedNanos / 1_000_000L);
+            return;
+        }
+        if (elapsedNanos < 60L * 1_000_000_000L) {
+            long wholeSeconds = elapsedNanos / 1_000_000_000L;
+            long tenths = (elapsedNanos % 1_000_000_000L) / 100_000_000L;
+            if (tenths == 0) {
+                if (wholeSeconds == 1) {
+                    System.out.println("Completed in 1 second");
+                } else {
+                    System.out.printf("Completed in %d seconds%n", wholeSeconds);
+                }
+            } else {
+                System.out.printf("Completed in %d.%d seconds%n", wholeSeconds, tenths);
+            }
+            System.out.println();
+            return;
+        }
+        long totalSeconds = elapsedNanos / 1_000_000_000L;
+        System.out.printf(
+                "Completed in %d min %d sec%n%n",
+                totalSeconds / 60,
+                totalSeconds % 60);
     }
 
     private int replaceBinaryAssets(RepositoryInventory inventory) {
