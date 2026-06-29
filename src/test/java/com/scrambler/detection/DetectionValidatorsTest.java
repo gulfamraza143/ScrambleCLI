@@ -43,6 +43,55 @@ class DetectionValidatorsTest {
     }
 
     @Test
+    void rejectsUuidLikeCreditCardFalsePositives() {
+        assertFalse(DetectionValidators.isValidCreditCard("09317399-8980-4718"));
+        assertFalse(DetectionValidators.isValidCreditCard("74185988-6536-4834"));
+        assertFalse(DetectionValidators.isValidCreditCard("8232-212553142849"));
+    }
+
+    @Test
+    void acceptsValidPhoneFormats() {
+        assertTrue(DetectionValidators.isValidPhone("+91-9876543210"));
+        assertTrue(DetectionValidators.isValidPhone("9876543210"));
+        assertTrue(DetectionValidators.isValidPhone("555-123-4567"));
+        assertTrue(DetectionValidators.isValidPhone("+1 (555) 123-4567"));
+    }
+
+    @Test
+    void rejectsDecimalAndBareDigitPhoneFalsePositives() {
+        assertFalse(DetectionValidators.isValidPhone("0.11000000"));
+        assertFalse(DetectionValidators.isValidPhone("616250959298"));
+        assertFalse(DetectionValidators.isValidPhone("100000000"));
+        assertFalse(DetectionValidators.isValidPhone("918897478998"));
+        assertFalse(DetectionValidators.isValidPhone("11.00000000"));
+        assertFalse(DetectionValidators.isValidPhone("7004-4915-8475"));
+    }
+
+    @Test
+    void acceptsHashedPasswordValues() {
+        assertTrue(DetectionValidators.isValidPassword(
+                "argon2$argon2i$v=19$m=512,t=2,p=2$NURSRFVIY0lGOWI0$x3MyMoJ5B30g4ZEVLmy6uA"));
+        assertTrue(DetectionValidators.isValidPassword("admin123"));
+    }
+
+    @Test
+    void rejectsSourceCodePasswordFalsePositives() {
+        assertFalse(DetectionValidators.isValidPassword("forms.CharField("));
+        assertFalse(DetectionValidators.isValidPassword("dt.now()"));
+        assertFalse(DetectionValidators.isValidPassword("self.cleaned_data["));
+        assertFalse(DetectionValidators.isValidPassword("request.POST["));
+        assertFalse(DetectionValidators.isValidPassword("settings.LAM_START_DATE"));
+    }
+
+    @Test
+    void rejectsLoopbackIpAddresses() {
+        assertFalse(DetectionValidators.isValidIpAddress("127.0.0.1"));
+        assertFalse(DetectionValidators.isValidIpAddress("0.0.0.0"));
+        assertTrue(DetectionValidators.isValidIpAddress("192.168.1.10"));
+        assertTrue(DetectionValidators.isValidIpAddress("10.0.2.2"));
+    }
+
+    @Test
     void acceptsValidGstinWithChecksum() {
         assertTrue(DetectionValidators.isValidGstin("27AAPFU0939F1ZV"));
         assertTrue(DetectionValidators.isValidGstin("09AAAUP8175A1ZG"));
@@ -120,5 +169,66 @@ class DetectionValidatorsTest {
         assertFalse(DetectionValidators.isValidInternalIdentifier("1234"));
         assertFalse(DetectionValidators.isValidInternalIdentifier(""));
         assertFalse(DetectionValidators.isValidInternalIdentifier("ab"));
+    }
+
+    @Test
+    void acceptsValidAwsAccessKeys() {
+        assertTrue(DetectionValidators.isValidAwsAccessKey("AKIAIOSFODNN7EXAMPLE"));
+        assertTrue(DetectionValidators.isValidAwsAccessKey("ASIAIOSFODNN7EXAMPLE"));
+    }
+
+    @Test
+    void rejectsInvalidAwsAccessKeys() {
+        assertFalse(DetectionValidators.isValidAwsAccessKey("AKIAIOSFODNN7EXAMPL"));
+        assertFalse(DetectionValidators.isValidAwsAccessKey("BKIAIOSFODNN7EXAMPLE"));
+    }
+
+    @Test
+    void acceptsValidGoogleApiKeys() {
+        assertTrue(DetectionValidators.isValidGoogleApiKey("AIzaSyDaGmWKa4Js4Z9jR83EIBbn15edIbZht09"));
+    }
+
+    @Test
+    void rejectsInvalidGoogleApiKeys() {
+        assertFalse(DetectionValidators.isValidGoogleApiKey("AIzaSyDaGmWKa4Js4Z9jR83EIBbn15edIbZht0"));
+        assertFalse(DetectionValidators.isValidGoogleApiKey("BIzaSyDaGmWKa4Js4Z9jR83EIBbn15edIbZht09"));
+    }
+
+    @Test
+    void acceptsValidEnterpriseCredentials() {
+        assertTrue(DetectionValidators.isValidEnterpriseCredential("ghp_1234567890abcdefghijklmnopqrstuvwxyz"));
+        assertTrue(DetectionValidators.isValidEnterpriseCredential("xoxb-1234567890-abcdefghij-abcdefghijklmnopqrstuvwx"));
+    }
+
+    @Test
+    void rejectsShortEnterpriseCredentials() {
+        assertFalse(DetectionValidators.isValidEnterpriseCredential("short"));
+    }
+
+    @Test
+    void acceptsValidAssignmentValues() {
+        assertTrue(DetectionValidators.isValidAssignmentValue("oauth_access_value"));
+        assertTrue(DetectionValidators.isValidAssignmentValue("xyz"));
+    }
+
+    @Test
+    void rejectsShortAssignmentValues() {
+        assertFalse(DetectionValidators.isValidAssignmentValue("ab"));
+    }
+
+    @Test
+    void acceptsValidSshPublicKeys() {
+        assertTrue(DetectionValidators.isValidSshPublicKey(
+                "ssh-rsa AAAAB3NzaC1yc2EAAAADAQABAAABgQC7vbqajDhA0Z8Z"));
+        assertTrue(DetectionValidators.isValidSshPublicKey(
+                "ssh-ed25519 AAAAC3NzaC1lZDI1NTE5AAAAIG7vbqajDhA0Z8Z"));
+        assertTrue(DetectionValidators.isValidSshPublicKey(
+                "-----BEGIN PUBLIC KEY-----\nMIIBIjANBgkqhkiG9w0BAQEFAAOCAQ8AMIIBCgKCAQEA\n-----END PUBLIC KEY-----"));
+    }
+
+    @Test
+    void rejectsInvalidSshPublicKeys() {
+        assertFalse(DetectionValidators.isValidSshPublicKey("ssh-rsa short"));
+        assertFalse(DetectionValidators.isValidSshPublicKey("ssh-dss AAAAB3NzaC1yc2E"));
     }
 }

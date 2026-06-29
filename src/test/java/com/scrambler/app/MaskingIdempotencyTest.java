@@ -49,13 +49,54 @@ class MaskingIdempotencyTest {
     }
 
     @Test
-    void alreadyMaskedZipFails(@TempDir Path tempDir) throws Exception {
+    void unmaskedZipWithWrapperFolderMasksSuccessfully(@TempDir Path tempDir) throws Exception {
+        Path repoZip = tempDir.resolve("fxtp-develop.zip");
+        createZip(repoZip, Map.of(
+                "fxtp-develop/pom.xml", "<project/>",
+                "fxtp-develop/App.java", "public class App { String email = \"admin@icici.com\"; }"));
+
+        int exitCode = new MaskingApplication(configFor(tempDir)).run(new String[]{repoZip.toString()});
+
+        assertEquals(MaskingApplication.EXIT_SUCCESS, exitCode);
+        assertTrue(Files.isRegularFile(tempDir.resolve("fxtp-develop.zip")));
+    }
+
+    @Test
+    void alreadyMaskedZipWithWrapperFolderFails(@TempDir Path tempDir) throws Exception {
+        Path repoZip = tempDir.resolve("fxtp-develop.zip");
+        createZip(repoZip, Map.of(
+                "fxtp-develop/" + RepositoryMetadata.FILENAME, RepositoryMetadata.toJson(),
+                "fxtp-develop/App.java", "public class App { String email = \"admin@icici.com\"; }"));
+
+        int exitCode = captureStderrAndRun(tempDir, repoZip.toString());
+
+        assertEquals(MaskingApplication.EXIT_PROCESSING_FAILURE, exitCode);
+        assertFalse(Files.exists(tempDir.resolve("entity_report.xlsx")));
+    }
+
+    @Test
+    void alreadyMaskedFlatZipFails(@TempDir Path tempDir) throws Exception {
         Path repoZip = tempDir.resolve("source.zip");
         createZip(repoZip, Map.of(
                 RepositoryMetadata.FILENAME, RepositoryMetadata.toJson(),
                 "App.java", "public class App { String email = \"admin@icici.com\"; }"));
 
         int exitCode = captureStderrAndRun(tempDir, repoZip.toString());
+
+        assertEquals(MaskingApplication.EXIT_PROCESSING_FAILURE, exitCode);
+    }
+
+    @Test
+    void alreadyMaskedTokenizedOutputZipFails(@TempDir Path tempDir) throws Exception {
+        Path repoZip = tempDir.resolve("ICICI_CODE_BANK.zip");
+        createZip(repoZip, Map.of(
+                "ICICI_CODE_BANK/notes.txt", "support@icici.com\n"));
+
+        ScramblerConfig config = configFor(tempDir);
+        assertEquals(MaskingApplication.EXIT_SUCCESS, new MaskingApplication(config).run(new String[]{repoZip.toString()}));
+
+        Path tokenZip = findTokenizedOutputZip(tempDir, "ICICI_CODE_BANK.zip");
+        int exitCode = captureStderrAndRun(tempDir, tokenZip.toString());
 
         assertEquals(MaskingApplication.EXIT_PROCESSING_FAILURE, exitCode);
     }
@@ -128,6 +169,15 @@ class MaskingIdempotencyTest {
         String errorOutput = stderr.toString(StandardCharsets.UTF_8);
         assertTrue(errorOutput.contains("ERROR " + RepositoryMetadata.ERROR_HEADLINE));
         assertTrue(errorOutput.contains(RepositoryMetadata.ERROR_DETAIL));
+    }
+
+    private static Path findTokenizedOutputZip(Path directory, String inputZipName) throws IOException {
+        try (var paths = Files.list(directory)) {
+            return paths.filter(path -> path.getFileName().toString().endsWith(".zip")
+                            && !path.getFileName().toString().equals(inputZipName))
+                    .findFirst()
+                    .orElseThrow(() -> new IOException("Tokenized output ZIP not found in " + directory));
+        }
     }
 
     private static int captureStderrAndRun(Path tempDir, String inputPath) {

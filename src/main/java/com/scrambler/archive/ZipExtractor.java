@@ -4,6 +4,7 @@ import org.apache.commons.compress.archivers.zip.ZipArchiveEntry;
 import org.apache.commons.compress.archivers.zip.ZipFile;
 import com.scrambler.config.ScramblerConfig;
 import com.scrambler.exception.ArchiveException;
+import com.scrambler.security.OsMetadataGuard;
 import com.scrambler.security.SymbolicLinkGuard;
 import com.scrambler.workspace.Workspace;
 import com.scrambler.workspace.WorkspaceManager;
@@ -66,6 +67,11 @@ public final class ZipExtractor {
 
                 if (SymbolicLinkGuard.isZipSymlink(entry)) {
                     SymbolicLinkGuard.logSkippedArchiveSymlink(entry.getName());
+                    continue;
+                }
+
+                if (OsMetadataGuard.isOsMetadataEntryName(entry.getName())) {
+                    OsMetadataGuard.logSkippedOsMetadataEntry(entry.getName());
                     continue;
                 }
 

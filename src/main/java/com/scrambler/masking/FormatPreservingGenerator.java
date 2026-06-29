@@ -65,8 +65,75 @@ public final class FormatPreservingGenerator {
             case CREDIT_CARD -> maskCreditCard(original, attempt);
             case TAN -> maskTan(original, attempt);
             case CIN -> maskCin(original, attempt);
+            case URL, DATABASE_URL -> maskUrl(original);
             default -> maskGeneric(original, attempt);
         };
+    }
+
+    private String maskUrl(String original) {
+        int authorityStart = findAuthorityStart(original);
+        if (authorityStart < 0) {
+            return original;
+        }
+
+        String prefix = original.substring(0, authorityStart);
+        String remainder = original.substring(authorityStart);
+        int authorityEnd = remainder.length();
+        for (char delimiter : new char[] { '/', '?', '#' }) {
+            int index = remainder.indexOf(delimiter);
+            if (index >= 0 && index < authorityEnd) {
+                authorityEnd = index;
+            }
+        }
+
+        String authority = remainder.substring(0, authorityEnd);
+        String suffix = remainder.substring(authorityEnd);
+
+        String userInfo = "";
+        String hostPort = authority;
+        int atIndex = authority.lastIndexOf('@');
+        if (atIndex >= 0) {
+            userInfo = authority.substring(0, atIndex + 1);
+            hostPort = authority.substring(atIndex + 1);
+        }
+
+        String host;
+        String afterHost;
+        if (hostPort.startsWith("[")) {
+            int closingBracket = hostPort.indexOf(']');
+            if (closingBracket < 0) {
+                return original;
+            }
+            host = hostPort.substring(0, closingBracket + 1);
+            afterHost = hostPort.substring(closingBracket + 1);
+        } else {
+            int colonIndex = hostPort.indexOf(':');
+            if (colonIndex >= 0) {
+                host = hostPort.substring(0, colonIndex);
+                afterHost = hostPort.substring(colonIndex);
+            } else {
+                host = hostPort;
+                afterHost = "";
+            }
+        }
+
+        return prefix + userInfo + brandDictionary.replaceInHostname(host) + afterHost + suffix;
+    }
+
+    private static int findAuthorityStart(String url) {
+        int schemeDelimiter = url.indexOf("://");
+        if (schemeDelimiter >= 0) {
+            return schemeDelimiter + 3;
+        }
+        int oracleDelimiter = url.indexOf("@//");
+        if (oracleDelimiter >= 0) {
+            return oracleDelimiter + 3;
+        }
+        int atSign = url.lastIndexOf('@');
+        if (atSign >= 0) {
+            return atSign + 1;
+        }
+        return -1;
     }
 
     private String maskEmail(String original, int attempt) {

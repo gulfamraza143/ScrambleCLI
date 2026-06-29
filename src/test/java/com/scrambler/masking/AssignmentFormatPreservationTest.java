@@ -87,9 +87,19 @@ class AssignmentFormatPreservationTest {
 
     @Test
     void masksJdbcUrlAssignment() {
-        assertAssignmentPreserved(
-                "jdbc.url=jdbc:postgresql://localhost:5432/test",
-                "jdbc.url=");
+        String original = "jdbc.url=jdbc:postgresql://db.icici.internal:5432/test";
+        String masked = mask(original);
+        assertTrue(masked.startsWith("jdbc.url="));
+        assertFalse(masked.contains("icici"));
+        assertTrue(masked.contains("jdbc:postgresql://db."));
+        assertTrue(masked.contains(".internal:5432/test"));
+    }
+
+    @Test
+    void preservesJdbcUrlWithoutBrandTerms() {
+        String original = "jdbc.url=jdbc:postgresql://localhost:5432/test";
+        String masked = mask(original);
+        assertEquals(original, masked);
     }
 
     @Test

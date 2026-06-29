@@ -106,7 +106,7 @@
                             <goal>shade</goal>
                         </goals>
                         <configuration>
-                            <finalName>scramble-mask</finalName>
+                            <outputFile>${project.build.directory}/scramble-mask.jar</outputFile>
                             <createDependencyReducedPom>false</createDependencyReducedPom>
                             <replaceOriginalArtifact>false</replaceOriginalArtifact>
                             <transformers>
@@ -134,7 +134,7 @@
                             <goal>shade</goal>
                         </goals>
                         <configuration>
-                            <finalName>scramble-unmask</finalName>
+                            <outputFile>${project.build.directory}/scramble-unmask.jar</outputFile>
                             <createDependencyReducedPom>false</createDependencyReducedPom>
                             <replaceOriginalArtifact>false</replaceOriginalArtifact>
                             <transformers>

@@ -92,6 +92,30 @@ public final class BrandReplacementDictionary {
     }
 
     /**
+     * Replaces configured brand terms inside a hostname, preserving label separators.
+     * Only single-token brand mappings are applied; labels without a match are unchanged.
+     *
+     * @param hostname hostname or host portion of a URL
+     * @return hostname with brand terms replaced
+     */
+    public String replaceInHostname(String hostname) {
+        Objects.requireNonNull(hostname, "hostname must not be null");
+        if (hostname.startsWith("[") && hostname.contains("]")) {
+            return hostname;
+        }
+
+        String[] labels = hostname.split("\\.", -1);
+        StringBuilder masked = new StringBuilder(hostname.length());
+        for (int index = 0; index < labels.length; index++) {
+            if (index > 0) {
+                masked.append('.');
+            }
+            masked.append(replaceInHostnameLabel(labels[index]));
+        }
+        return masked.toString();
+    }
+
+    /**
      * Replaces a matched brand term with its configured replacement.
      *
      * @param original matched brand text
@@ -196,6 +220,49 @@ public final class BrandReplacementDictionary {
         if (replacement.isBlank()) {
             throw new IllegalStateException("Blank replacement value in brand replacement at " + location + ": " + source);
         }
+    }
+
+    private String replaceInHostnameLabel(String label) {
+        String masked = label;
+        for (BrandMapping mapping : mappings) {
+            if (mapping.source().indexOf(' ') >= 0) {
+                continue;
+            }
+            masked = replaceIgnoreCase(masked, mapping.source(), mapping.replacement());
+        }
+        return masked;
+    }
+
+    private static String replaceIgnoreCase(String text, String source, String replacement) {
+        String lowerText = text.toLowerCase(Locale.ROOT);
+        String lowerSource = source.toLowerCase(Locale.ROOT);
+        if (lowerSource.isEmpty() || !lowerText.contains(lowerSource)) {
+            return text;
+        }
+
+        StringBuilder masked = new StringBuilder(text.length());
+        int index = 0;
+        while (index < text.length()) {
+            int match = lowerText.indexOf(lowerSource, index);
+            if (match < 0) {
+                masked.append(text, index, text.length());
+                break;
+            }
+            masked.append(text, index, match);
+            masked.append(applyCasePattern(text.substring(match, match + source.length()), replacement));
+            index = match + source.length();
+        }
+        return masked.toString();
+    }
+
+    private static String applyCasePattern(String matched, String replacement) {
+        if (matched.equals(matched.toLowerCase(Locale.ROOT))) {
+            return replacement.toLowerCase(Locale.ROOT);
+        }
+        if (matched.equals(matched.toUpperCase(Locale.ROOT))) {
+            return replacement.toUpperCase(Locale.ROOT);
+        }
+        return replacement;
     }
 
     private BrandMapping resolveMapping(String original) {

@@ -28,6 +28,7 @@ import com.scrambler.workspace.WorkspaceManager;
 
 import java.nio.file.Path;
 import java.nio.file.Paths;
+import java.util.Optional;
 import java.util.List;
 
 /**
@@ -144,7 +145,11 @@ public final class UnmaskingApplication {
                 continue;
             }
 
-            String maskedContent = textFileReader.readUtf8(fileInfo.getAbsolutePath());
+            Optional<String> maskedContentOptional = textFileReader.readUtf8(fileInfo.getAbsolutePath());
+            if (maskedContentOptional.isEmpty()) {
+                continue;
+            }
+            String maskedContent = maskedContentOptional.get();
             int tokensBefore = restoreResult.getTokensRestored();
             String restoredContent = unmaskingEngine.unmask(maskedContent, mappingIndex, restoreResult);
             textFileWriter.writeUtf8(fileInfo.getAbsolutePath(), restoredContent);

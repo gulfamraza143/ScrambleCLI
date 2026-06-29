@@ -1,6 +1,7 @@
 package com.scrambler.inventory;
 
 import com.scrambler.exception.FileProcessingException;
+import com.scrambler.security.OsMetadataGuard;
 import com.scrambler.security.SymbolicLinkGuard;
 import com.scrambler.workspace.WorkspaceManager;
 
@@ -48,7 +49,11 @@ public final class FileIterator {
 
         try (Stream<Path> paths = Files.walk(extractionRoot)) {
             paths.forEach(path -> {
-                if (SymbolicLinkGuard.skipIfSymbolicLink(path, extractionRoot.relativize(path))) {
+                Path relativePath = extractionRoot.relativize(path);
+                if (SymbolicLinkGuard.skipIfSymbolicLink(path, relativePath)) {
+                    return;
+                }
+                if (OsMetadataGuard.skipIfOsMetadata(path, relativePath)) {
                     return;
                 }
                 if (Files.isRegularFile(path)) {

@@ -62,6 +62,15 @@ class BrandReplacementDictionaryTest {
     }
 
     @Test
+    void replaceInHostnameAppliesConfiguredBrandMappings() {
+        BrandReplacementDictionary dictionary = BrandReplacementDictionary.defaults();
+
+        assertEquals("api.acmebank.com", dictionary.replaceInHostname("api.icicibank.com"));
+        assertEquals("db.acmecorp.internal", dictionary.replaceInHostname("db.icici.internal"));
+        assertEquals("example.com", dictionary.replaceInHostname("example.com"));
+    }
+
+    @Test
     void caseInsensitiveMatchingResolvesToConfiguredReplacement() {
         BrandReplacementDictionary dictionary = BrandReplacementDictionary.defaults();
 

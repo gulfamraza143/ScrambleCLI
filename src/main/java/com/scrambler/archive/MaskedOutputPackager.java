@@ -1,6 +1,7 @@
 package com.scrambler.archive;
 
 import com.scrambler.exception.ArchiveException;
+import com.scrambler.security.OsMetadataGuard;
 import com.scrambler.workspace.Workspace;
 import com.scrambler.workspace.WorkspaceManager;
 
@@ -92,6 +93,7 @@ public final class MaskedOutputPackager {
     private List<Path> collectRegularFiles(Path repositoryRoot) {
         try (Stream<Path> paths = Files.walk(repositoryRoot)) {
             return paths.filter(Files::isRegularFile)
+                    .filter(path -> !OsMetadataGuard.isOsMetadata(path))
                     .sorted(Comparator.naturalOrder())
                     .toList();
         } catch (IOException e) {

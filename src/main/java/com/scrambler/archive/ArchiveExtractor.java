@@ -2,6 +2,7 @@ package com.scrambler.archive;
 
 import com.scrambler.config.ScramblerConfig;
 import com.scrambler.exception.ArchiveException;
+import com.scrambler.security.OsMetadataGuard;
 import com.scrambler.security.SymbolicLinkGuard;
 import com.scrambler.workspace.Workspace;
 import com.scrambler.workspace.WorkspaceManager;
@@ -107,6 +108,9 @@ public final class ArchiveExtractor {
                 try {
                     Path relative = sourceDirectory.relativize(sourcePath);
                     if (SymbolicLinkGuard.skipIfSymbolicLink(sourcePath, relative)) {
+                        return;
+                    }
+                    if (OsMetadataGuard.skipIfOsMetadata(sourcePath, relative)) {
                         return;
                     }
                     Path targetPath = targetRoot.resolve(relative);

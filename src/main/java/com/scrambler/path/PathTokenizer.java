@@ -5,6 +5,7 @@ import com.scrambler.exception.FileProcessingException;
 import com.scrambler.masking.GlobalValueMapper;
 import com.scrambler.masking.MappingRecord;
 import com.scrambler.masking.MappingRegistry;
+import com.scrambler.security.OsMetadataGuard;
 import com.scrambler.security.SymbolicLinkGuard;
 
 import java.io.IOException;
@@ -66,7 +67,7 @@ public final class PathTokenizer {
             MappingRegistry registry) {
         try {
             LOGGER.info("Starting path tokenization for repository: {}", repositoryName);
-            Path contentRoot = resolveContentRoot(extractionRoot, repositoryName);
+            Path contentRoot = PathTokenizer.resolveContentRoot(extractionRoot, repositoryName);
             Map<String, String> segmentMappings = collectSegmentMappings(contentRoot, mapper, registry);
             LOGGER.debug("Collected {} path segment mappings", segmentMappings.size());
             applySegmentRenames(contentRoot, segmentMappings);
@@ -93,10 +94,13 @@ public final class PathTokenizer {
 
         try (Stream<Path> paths = Files.walk(contentRoot)) {
             paths.forEach(path -> {
-                if (SymbolicLinkGuard.skipIfSymbolicLink(path, contentRoot.relativize(path))) {
+                Path relative = contentRoot.relativize(path);
+                if (SymbolicLinkGuard.skipIfSymbolicLink(path, relative)) {
                     return;
                 }
-                Path relative = contentRoot.relativize(path);
+                if (OsMetadataGuard.isOsMetadata(path)) {
+                    return;
+                }
                 if (relative.getNameCount() == 0) {
                     return;
                 }
@@ -161,7 +165,11 @@ public final class PathTokenizer {
         List<Path> directories = new ArrayList<>();
         try (Stream<Path> paths = Files.walk(contentRoot)) {
             paths.forEach(path -> {
-                if (SymbolicLinkGuard.skipIfSymbolicLink(path, contentRoot.relativize(path))) {
+                Path relative = contentRoot.relativize(path);
+                if (SymbolicLinkGuard.skipIfSymbolicLink(path, relative)) {
+                    return;
+                }
+                if (OsMetadataGuard.isOsMetadata(path)) {
                     return;
                 }
                 if (Files.isDirectory(path) && !path.equals(contentRoot)) {
@@ -176,7 +184,11 @@ public final class PathTokenizer {
         List<Path> files = new ArrayList<>();
         try (Stream<Path> paths = Files.walk(contentRoot)) {
             paths.forEach(path -> {
-                if (SymbolicLinkGuard.skipIfSymbolicLink(path, contentRoot.relativize(path))) {
+                Path relative = contentRoot.relativize(path);
+                if (SymbolicLinkGuard.skipIfSymbolicLink(path, relative)) {
+                    return;
+                }
+                if (OsMetadataGuard.isOsMetadata(path)) {
                     return;
                 }
                 if (Files.isRegularFile(path)) {
@@ -252,10 +264,26 @@ public final class PathTokenizer {
         return renamedRoot;
     }
 
-    private Path resolveContentRoot(Path extractionRoot, String repositoryName) throws IOException {
+    /**
+     * Resolves the repository content root within an extraction directory.
+     *
+     * <p>When the extraction root contains a single top-level directory whose name matches
+     * {@code repositoryName}, that directory is returned. Otherwise the extraction root itself
+     * is treated as the content root (flat archive layout).
+     *
+     * @param extractionRoot workspace extraction root containing repository files
+     * @param repositoryName repository name derived from the input path (without archive extension)
+     * @return repository content root directory
+     * @throws IOException when the extraction root cannot be listed
+     */
+    public static Path resolveContentRoot(Path extractionRoot, String repositoryName) throws IOException {
         try (Stream<Path> children = Files.list(extractionRoot)) {
             List<Path> entries = children
-                    .filter(path -> !SymbolicLinkGuard.skipIfSymbolicLink(path, extractionRoot.relativize(path)))
+                    .filter(path -> {
+                        Path relative = extractionRoot.relativize(path);
+                        return !SymbolicLinkGuard.skipIfSymbolicLink(path, relative)
+                                && !OsMetadataGuard.isOsMetadata(path);
+                    })
                     .toList();
             List<Path> directories = entries.stream().filter(Files::isDirectory).toList();
             List<Path> files = entries.stream().filter(Files::isRegularFile).toList();

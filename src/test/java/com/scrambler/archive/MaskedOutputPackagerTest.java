@@ -33,6 +33,10 @@ class MaskedOutputPackagerTest {
         Files.createDirectories(nestedFile.getParent());
         Files.writeString(nestedFile, "masked content\n");
         Files.writeString(repositoryRoot.resolve(".scramble_metadata"), "masked\n");
+        Files.createDirectories(repositoryRoot.resolve("__MACOSX/nested"));
+        Files.writeString(repositoryRoot.resolve("__MACOSX/nested/._ignored.txt"), "ignored");
+        Files.writeString(repositoryRoot.resolve(".DS_Store"), "metadata");
+        Files.writeString(repositoryRoot.resolve("Thumbs.db"), "metadata");
 
         WorkspaceManager workspaceManager = new WorkspaceManager();
         Workspace workspace = workspaceManager.createWorkspace(ScramblerConfig.builder()
